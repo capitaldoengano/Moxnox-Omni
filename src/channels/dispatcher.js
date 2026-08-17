@@ -21,8 +21,12 @@ async function postJson(url, token, body) {
 
 function instagramRequest(config, event, outbound) {
   const base = `${trimSlash(config.instagramGraphBaseUrl)}/${config.metaApiVersion}`
+  const account = config.instagramAccounts?.find(
+    (candidate) => candidate.accountId && candidate.accountId === event.accountId,
+  )
+  const accessToken = account?.accessToken || config.instagramAccessToken
   if (outbound.target === "public_comment") {
-    return postJson(`${base}/${event.commentId}/replies`, config.instagramAccessToken, {
+    return postJson(`${base}/${event.commentId}/replies`, accessToken, {
       message: outbound.text,
     })
   }
@@ -30,7 +34,7 @@ function instagramRequest(config, event, outbound) {
     outbound.target === "private_comment_reply"
       ? { comment_id: event.commentId }
       : { id: event.contactId }
-  return postJson(`${base}/me/messages`, config.instagramAccessToken, {
+  return postJson(`${base}/me/messages`, accessToken, {
     recipient,
     message: { text: outbound.text },
   })
@@ -98,4 +102,3 @@ export function createDispatcher(config) {
     },
   }
 }
-

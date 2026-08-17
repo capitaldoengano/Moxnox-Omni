@@ -1,8 +1,9 @@
 # Architecture
 
 Moxnox Omni currently uses one small process to prove the complete event path
-without hiding behavior behind infrastructure. Interfaces are separated so the
-storage and queue can be replaced without changing channel or policy code.
+without hiding behavior behind infrastructure. The same process serves a small
+internal cockpit. Interfaces are separated so the storage and queue can be
+replaced without changing channel or policy code.
 
 ```mermaid
 flowchart TD
@@ -19,6 +20,7 @@ flowchart TD
 
 - `src/domain`: provider-neutral events, policy decisions and response pipeline.
 - `src/channels`: outbound provider protocol adapters.
+- `src/cockpit`: dependency-free internal operator interface.
 - `src/infra`: replaceable persistence and work queue.
 - `src/lib`: small security and HTTP primitives.
 - `src/app.js`: transport routes and authentication.
@@ -30,4 +32,3 @@ Before multi-instance production, replace them with PostgreSQL and a durable
 queue, add per-tenant encryption keys, rate limits, migrations, backups and
 delivery reconciliation. The domain API should stay stable while those adapters
 change.
-

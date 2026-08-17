@@ -100,6 +100,59 @@ export class EventStore {
       }))
   }
 
+  listInbox(limit = 100) {
+    const inbound = this.#records
+      .filter((record) => record.type === "inbound")
+      .slice(-limit)
+      .reverse()
+
+    return inbound.map((record) => {
+      const eventId = record.event.id
+      const decisions = this.#records.filter(
+        (candidate) => candidate.type === "decision" && candidate.eventId === eventId,
+      )
+      const outbound = this.#records.filter(
+        (candidate) => candidate.type === "outbound" && candidate.eventId === eventId,
+      )
+      const resolutions = this.#records.filter(
+        (candidate) =>
+          candidate.type === "review_resolution" && candidate.eventId === eventId,
+      )
+      return {
+        event: record.event,
+        receivedAt: record.at,
+        decision: decisions.at(-1)?.decision ?? null,
+        outbound: outbound.map((candidate) => candidate.outbound),
+        resolution: resolutions.at(-1)?.resolution ?? null,
+      }
+    })
+  }
+
+  getSummary() {
+    const inbound = this.#records.filter((record) => record.type === "inbound")
+    const decisions = this.#records.filter((record) => record.type === "decision")
+    const outbound = this.#records.filter((record) => record.type === "outbound")
+    return {
+      inbound: inbound.length,
+      messages: inbound.filter((record) => record.event.kind === "message").length,
+      comments: inbound.filter((record) => record.event.kind === "comment").length,
+      contacts: new Set(
+        inbound.map(
+          (record) =>
+            `${record.event.channel}:${record.event.accountId}:${record.event.contactId}`,
+        ),
+      ).size,
+      automated: decisions.filter(
+        (record) => record.decision.outcome === "automated",
+      ).length,
+      pendingReviews: this.listReviews().length,
+      failedDeliveries: outbound.filter(
+        (record) => record.outbound.status === "failed",
+      ).length,
+      lastInboundAt: inbound.at(-1)?.at ?? null,
+    }
+  }
+
   listConversation(conversationId) {
     const eventIds = new Set(
       this.#records
@@ -117,4 +170,3 @@ export class EventStore {
     )
   }
 }
-

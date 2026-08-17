@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Moxnox Omni · Cockpit interno</title>
+    <link rel="stylesheet" href="/cockpit/styles.css" />
+    <script src="/cockpit/app.js" type="module"></script>
+  </head>
+  <body>
+    <main id="login-view" class="login-shell">
+      <section class="login-card" aria-labelledby="login-title">
+        <p class="eyebrow">MOXNOX / USO INTERNO</p>
+        <h1 id="login-title">Mensagens no mesmo lugar.</h1>
+        <p class="login-copy">
+          Entre com a chave administrativa para acompanhar comentários, directs e
+          oportunidades de conversa.
+        </p>
+        <form id="login-form">
+          <label for="api-key">Chave do cockpit</label>
+          <div class="login-row">
+            <input
+              id="api-key"
+              name="api-key"
+              type="password"
+              autocomplete="current-password"
+              required
+              placeholder="ADMIN_API_KEY"
+            />
+            <button type="submit" class="primary-button">Entrar</button>
+          </div>
+          <p id="login-error" class="form-error" role="alert"></p>
+        </form>
+        <p class="privacy-note">A chave fica somente nesta aba e some ao fechá-la.</p>
+      </section>
+    </main>
+
+    <div id="app-view" class="app-shell" hidden>
+      <aside class="sidebar">
+        <div>
+          <p class="eyebrow">MOXNOX OMNI</p>
+          <h1 class="brand">cockpit<span>.</span></h1>
+          <p class="internal-badge">interno · v0.2</p>
+        </div>
+
+        <nav class="main-nav" aria-label="Seções">
+          <button class="nav-item is-active" data-view="inbox">
+            <span>Caixa de entrada</span>
+            <span id="nav-inbox-count" class="nav-count">0</span>
+          </button>
+          <button class="nav-item" data-view="reviews">
+            <span>Precisa de você</span>
+            <span id="nav-review-count" class="nav-count accent">0</span>
+          </button>
+          <button class="nav-item" data-view="connections">
+            <span>Conexões</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <p id="delivery-mode" class="mode-pill">modo: verificando</p>
+          <button id="logout-button" class="text-button">Sair do cockpit</button>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p id="view-kicker" class="eyebrow">VISÃO GERAL</p>
+            <h2 id="view-title">Caixa de entrada</h2>
+          </div>
+          <div class="topbar-actions">
+            <span id="sync-status" class="sync-status" aria-live="polite">Atualizando…</span>
+            <button id="refresh-button" class="secondary-button">Atualizar</button>
+          </div>
+        </header>
+
+        <section id="summary-strip" class="summary-grid" aria-label="Resumo">
+          <article class="metric-card">
+            <span>Recebidas</span>
+            <strong id="metric-inbound">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Possíveis vendas</span>
+            <strong id="metric-sales">0</strong>
+          </article>
+          <article class="metric-card acid">
+            <span>Automatizadas</span>
+            <strong id="metric-automated">0</strong>
+          </article>
+          <article class="metric-card warning">
+            <span>Para revisar</span>
+            <strong id="metric-reviews">0</strong>
+          </article>
+        </section>
+
+        <section id="inbox-view" class="view-panel">
+          <div class="toolbar">
+            <label class="search-field">
+              <span class="sr-only">Buscar mensagens</span>
+              <input id="inbox-search" type="search" placeholder="Buscar pessoa ou mensagem" />
+            </label>
+            <div id="inbox-filters" class="filter-group" aria-label="Filtros">
+              <button class="filter-button is-active" data-filter="all">Tudo</button>
+              <button class="filter-button" data-filter="instagram">Instagram</button>
+              <button class="filter-button" data-filter="whatsapp">WhatsApp</button>
+              <button class="filter-button" data-filter="comment">Comentários</button>
+              <button class="filter-button" data-filter="sales">Possível venda</button>
+              <button class="filter-button" data-filter="review">Revisão</button>
+            </div>
+          </div>
+          <div id="inbox-list" class="message-list"></div>
+        </section>
+
+        <section id="reviews-view" class="view-panel" hidden>
+          <div class="section-intro">
+            <div>
+              <p class="eyebrow">FILA HUMANA</p>
+              <h3>Mensagens que pedem contexto</h3>
+            </div>
+            <p>
+              Aqui ficam temas sensíveis ou mensagens para as quais ainda não existe uma
+              automação confiável.
+            </p>
+          </div>
+          <div id="review-list" class="review-list"></div>
+        </section>
+
+        <section id="connections-view" class="view-panel" hidden>
+          <div class="section-intro">
+            <div>
+              <p class="eyebrow">META</p>
+              <h3>Conexões e credenciais</h3>
+            </div>
+            <p>
+              O cockpit mostra apenas o estado das integrações. Tokens e segredos nunca
+              aparecem aqui.
+            </p>
+          </div>
+          <div id="connection-list" class="connection-grid"></div>
+          <article class="setup-note">
+            <p class="eyebrow">PRÓXIMA AÇÃO</p>
+            <h4>Complete o arquivo <code>.env</code> no servidor</h4>
+            <p>
+              Depois de configurar as contas na Meta, reinicie o serviço e valide tudo em
+              <strong>dry-run</strong> antes de habilitar envios reais.
+            </p>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

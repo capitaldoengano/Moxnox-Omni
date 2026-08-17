@@ -37,3 +37,16 @@ export function sendText(response, statusCode, body) {
   response.end(text)
 }
 
+export function sendAsset(response, statusCode, body, contentType) {
+  response.writeHead(statusCode, {
+    "content-type": contentType,
+    "content-length": Buffer.byteLength(body),
+    "cache-control": "no-store",
+    "content-security-policy":
+      "default-src 'self'; connect-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+  })
+  response.end(body)
+}

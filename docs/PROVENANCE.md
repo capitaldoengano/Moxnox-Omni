@@ -29,3 +29,12 @@ and GitHub Actions are listed in `THIRD_PARTY_NOTICES.md`.
 Every pull request that adds a dependency or adapts an external protocol must
 update this document or the third-party notices.
 
+## Provider references added for v0.2
+
+The multi-account credential model and setup guide use only official Meta
+documentation as implementation references:
+
+- https://developers.facebook.com/docs/graph-api/webhooks/getting-started/
+- https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/
+- https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/
+- https://developers.facebook.com/docs/whatsapp/cloud-api/
