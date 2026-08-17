@@ -31,6 +31,8 @@ test("serves the cockpit and exposes authenticated operational data", async (t) 
   const queue = new JobQueue((event) => pipeline.process(event))
   const config = {
     deliveryMode: "dry-run",
+    liveAccounts: [],
+    nodeEnv: "production",
     publicBaseUrl: "https://omni.example.test",
     adminApiKey: "internal-admin-key",
     webchatSiteToken: "internal-site-token",
@@ -71,7 +73,8 @@ test("serves the cockpit and exposes authenticated operational data", async (t) 
   assert.match(cockpitHtml, /conversation-workspace/)
   assert.match(cockpitHtml, /conversation-detail/)
   assert.match(cockpitHtml, /Responder agora/)
-  assert.match(cockpitHtml, /interno · v0\.7/)
+  assert.match(cockpitHtml, /interno · v0\.8/)
+  assert.match(cockpitHtml, /readiness-card/)
 
   const cockpitScript = await fetch(`${baseUrl}/cockpit/app.js`)
   assert.equal(cockpitScript.status, 200)
@@ -104,6 +107,15 @@ test("serves the cockpit and exposes authenticated operational data", async (t) 
   assert.equal(setup.access.method, "browser")
   assert.equal(setup.access.cockpitUrl, "https://omni.example.test/cockpit")
   assert.equal(setup.groups.some((group) => group.id === "instagram-gu"), true)
+
+  const readinessResponse = await fetch(`${baseUrl}/v1/readiness`, { headers })
+  const readinessText = await readinessResponse.text()
+  assert.equal(readinessResponse.status, 200)
+  assert.doesNotMatch(readinessText, /must-not-leak/)
+  const readiness = JSON.parse(readinessText).data
+  assert.equal(readiness.stage, "dry-run")
+  assert.equal(readiness.pilotReady, true)
+  assert.equal(readiness.liveReady, false)
 
   const inbound = await fetch(`${baseUrl}/v1/webchat/messages`, {
     method: "POST",
@@ -198,12 +210,13 @@ test("serves the cockpit and exposes authenticated operational data", async (t) 
     },
   )
   assert.equal(approval.status, 200)
-  assert.equal(store.listReviews().length, 0)
+  assert.equal((await approval.json()).status, "planned")
+  assert.equal(store.listReviews().length, 1)
 
   const analytics = await fetch(`${baseUrl}/v1/analytics`, { headers }).then(
     (response) => response.json(),
   )
-  assert.equal(analytics.data.reviewResolutionRate, 100)
+  assert.equal(analytics.data.reviewResolutionRate, 0)
   assert.equal(analytics.data.responded, 1)
 
   const history = await fetch(
@@ -212,6 +225,6 @@ test("serves the cockpit and exposes authenticated operational data", async (t) 
   ).then((response) => response.json())
   assert.deepEqual(
     history.data.map((record) => record.type),
-    ["inbound", "classification", "outbound", "review_resolution"],
+    ["inbound", "classification", "outbound"],
   )
 })

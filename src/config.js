@@ -2,6 +2,13 @@ import { readFile } from "node:fs/promises"
 import path from "node:path"
 
 const MIN_SECRET_LENGTH = 24
+const LIVE_ACCOUNT_KEYS = new Set([
+  "capital-do-engano",
+  "gu",
+  "whatsapp",
+  "messenger",
+  "webchat",
+])
 
 const clean = (value) => (typeof value === "string" ? value.trim() : "")
 const isTemplateValue = (value) => /^(?:replace-|change-me|changeme)/i.test(value)
@@ -22,6 +29,15 @@ const parseCooldownMinutes = (value) => {
   return parsed
 }
 
+const parseLiveAccounts = (value) => {
+  const accounts = [...new Set(clean(value).split(",").map((item) => item.trim()).filter(Boolean))]
+  const invalid = accounts.filter((account) => !LIVE_ACCOUNT_KEYS.has(account))
+  if (invalid.length) {
+    throw new Error(`LIVE_ACCOUNTS contains unknown accounts: ${invalid.join(", ")}`)
+  }
+  return accounts
+}
+
 export function loadConfig(env = process.env) {
   const deliveryMode = clean(env.DELIVERY_MODE) || "dry-run"
   if (!["dry-run", "live"].includes(deliveryMode)) {
@@ -33,6 +49,7 @@ export function loadConfig(env = process.env) {
     host: clean(env.HOST) || "0.0.0.0",
     port: parsePort(env.PORT),
     deliveryMode,
+    liveAccounts: parseLiveAccounts(env.LIVE_ACCOUNTS),
     dataDir: path.resolve(clean(env.DATA_DIR) || "./data"),
     automationsFile: path.resolve(
       clean(env.AUTOMATIONS_FILE) || "./config/automations.example.json",
@@ -88,6 +105,11 @@ export function loadConfig(env = process.env) {
   }
 
   if (config.deliveryMode === "live") {
+    if (!config.liveAccounts.length) {
+      throw new Error(
+        "LIVE_ACCOUNTS must explicitly list at least one account before live delivery",
+      )
+    }
     for (const [name, value] of [
       ["META_VERIFY_TOKEN", config.metaVerifyToken],
       ["META_APP_SECRET", config.metaAppSecret],
@@ -111,6 +133,27 @@ export function loadConfig(env = process.env) {
     ]) {
       if (Boolean(id) !== Boolean(token)) {
         throw new Error(`${name} requires both an account ID and access token`)
+      }
+    }
+
+    for (const key of config.liveAccounts) {
+      if (["capital-do-engano", "gu"].includes(key)) {
+        const account = config.instagramAccounts.find((candidate) => candidate.key === key)
+        if (!account?.accountId || !account?.accessToken) {
+          throw new Error(`${key} is listed in LIVE_ACCOUNTS but is not configured`)
+        }
+      }
+      if (
+        key === "whatsapp" &&
+        (!config.whatsappPhoneNumberId || !config.whatsappAccessToken)
+      ) {
+        throw new Error("whatsapp is listed in LIVE_ACCOUNTS but is not configured")
+      }
+      if (
+        key === "messenger" &&
+        (!config.messengerPageId || !config.messengerPageAccessToken)
+      ) {
+        throw new Error("messenger is listed in LIVE_ACCOUNTS but is not configured")
       }
     }
   }

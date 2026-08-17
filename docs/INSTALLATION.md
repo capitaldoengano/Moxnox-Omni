@@ -26,8 +26,8 @@ The installer asks for the public URL. Press Enter to use
 - refuses to overwrite an existing `.env`.
 
 Copy the cockpit key printed once by the installer and open
-`http://localhost:3333/cockpit`. Choose **Instalação** to see the remaining
-checklist. Do not send that key or the `.env` file through chat, email, issues or
+`http://localhost:3333/cockpit`. Choose **Operação** to see the remaining
+checklist and the pre-operation status. Do not send that key or the `.env` file through chat, email, issues or
 pull requests.
 
 For Docker, create `.env` with the same installer and then run:
@@ -93,7 +93,9 @@ In the Meta app webhook settings:
    by the connected products;
 5. keep `DELIVERY_MODE=dry-run` while sending test events;
 6. inspect the inbox, review queue and planned replies in the cockpit;
-7. use `DELIVERY_MODE=live` only after inbound and outbound tests pass.
+7. confirm the real inbound event in the **Operação** view;
+8. set `LIVE_ACCOUNTS=capital-do-engano` to release only the first pilot account;
+9. use `DELIVERY_MODE=live` only after the cockpit shows no blocker.
 
 Official references: [Instagram
 webhooks](https://developers.facebook.com/documentation/instagram-platform/webhooks)
@@ -113,3 +115,9 @@ docker compose up -d --build
 
 Automation copy and backlog classifications are different: those are edited in
 the cockpit and become available immediately without restarting.
+
+To stop real sending without disconnecting webhooks, restore
+`DELIVERY_MODE=dry-run` and restart. Inbound events continue to be authenticated,
+stored and classified while provider delivery remains disabled.
+
+See the [pilot runbook](PILOT_RUNBOOK.md) for the opening and rollback sequence.

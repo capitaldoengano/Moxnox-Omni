@@ -92,3 +92,53 @@ test("does not start the repetition cooldown after a failed delivery", async (t)
   assert.equal(attempts, 2)
   assert.equal(store.getAnalytics().responded, 1)
 })
+
+test("keeps a human review open after simulation and closes it after delivery", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "moxnox-review-delivery-"))
+  t.after(() => rm(dataDir, { recursive: true, force: true }))
+  const store = new EventStore(dataDir)
+  await store.initialize()
+  let status = "planned"
+  const pipeline = createPipeline({
+    store,
+    rules: [],
+    dispatcher: { send: async () => ({ status }) },
+  })
+  const inbound = event("review-event", "Uma pergunta sem regra")
+  await store.recordInbound(inbound)
+  await pipeline.process(inbound)
+
+  assert.equal((await pipeline.approve(inbound.id, "Teste")).status, "planned")
+  assert.equal(store.listReviews().length, 1)
+
+  status = "delivered"
+  assert.equal((await pipeline.approve(inbound.id, "Resposta real")).status, "delivered")
+  assert.equal(store.listReviews().length, 0)
+})
+
+test("routes automations from a protected account to human review", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "moxnox-protected-account-"))
+  t.after(() => rm(dataDir, { recursive: true, force: true }))
+  const store = new EventStore(dataDir)
+  await store.initialize()
+  let attempts = 0
+  const pipeline = createPipeline({
+    store,
+    rules: [rule],
+    dispatcher: {
+      modeFor: () => "protected",
+      send: async () => {
+        attempts += 1
+        return { status: "planned" }
+      },
+    },
+  })
+  const inbound = event("protected-event", "Qual o valor?")
+  await store.recordInbound(inbound)
+  const decision = await pipeline.process(inbound)
+
+  assert.equal(decision.outcome, "human_review")
+  assert.equal(decision.reason, "account_not_live")
+  assert.equal(attempts, 0)
+  assert.equal(store.listReviews().length, 1)
+})

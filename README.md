@@ -9,7 +9,7 @@ deduplicates events, evaluates deterministic rules and records proposed
 responses without contacting a provider. Live delivery must be enabled
 explicitly after credentials and Meta permissions are validated.
 
-## What works in v0.7
+## What works in v0.8
 
 - Meta webhook verification and HMAC-SHA256 signature validation.
 - Instagram comments and DMs, Facebook Page comments and DMs, and WhatsApp text.
@@ -36,6 +36,11 @@ explicitly after credentials and Meta permissions are validated.
 - Operational indicators for automation, response time, review resolution and aging.
 - Three-pane operator flow with a compact conversation queue and selected contact context.
 - Inline human replies, lead confirmation and classification access without hunting across views.
+- Account-scoped live delivery through an explicit `LIVE_ACCOUNTS` allowlist.
+- A pre-operation dashboard that separates configured, tested and live connections.
+- Safe recovery of inbound events that were persisted but not processed before a restart.
+- Concurrent provider-event deduplication before outbound work.
+- Dry-run human simulations stay open and are never presented as sent replies.
 - Dependency-free Node.js runtime, tests, Docker image and CI.
 
 ## Quick start
@@ -57,12 +62,14 @@ docker compose up --build
 Open `http://localhost:3333/cockpit` and enter the value configured in
 `ADMIN_API_KEY`. The installer prints this value once and also stores it in the
 untracked `.env` file. The key is kept in browser session storage and disappears
-when the tab is closed. After login, open **Instalação** for the guided Meta
-checklist.
+when the tab is closed. After login, open **Operação** for the guided Meta
+checklist and pilot status.
 
 Do not set `DELIVERY_MODE=live` until the correct provider credentials,
 permissions and webhook subscriptions have been tested in a non-production
-Meta app.
+Meta app. Live mode also requires an explicit account allowlist, for example
+`LIVE_ACCOUNTS=capital-do-engano`; accounts outside the list remain protected
+in dry-run.
 
 ## Endpoints
 
@@ -83,6 +90,7 @@ Meta app.
 | `POST` | `/v1/automations/test` | Simulate matching without sending anything |
 | `GET` | `/v1/integrations` | Credential status without revealing secrets |
 | `GET` | `/v1/setup` | First-run checklist, access URLs and official guides |
+| `GET` | `/v1/readiness` | Pilot checks, account activity and safe live scope |
 | `POST` | `/v1/inbox/:id/classification` | Append a backlog classification and note |
 | `GET` | `/v1/inbox/:id/history` | Audited history for the contact in the same account |
 | `POST` | `/v1/reviews/:id/approve` | Approve and deliver a reply |
@@ -114,6 +122,7 @@ not legal advice.
 - [Data protection baseline](docs/DATA_PROTECTION.md)
 - [Meta setup](docs/META_SETUP.md)
 - [Installation and first access](docs/INSTALLATION.md)
+- [Pilot runbook](docs/PILOT_RUNBOOK.md)
 - [Omnichannel product strategy](docs/OMNICHANNEL_STRATEGY.md)
 - [Automation rules](docs/AUTOMATIONS.md)
 - [Security policy](SECURITY.md)

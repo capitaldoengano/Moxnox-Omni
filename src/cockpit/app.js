@@ -7,6 +7,7 @@ const state = {
   summary: {},
   integrations: null,
   setup: null,
+  readiness: null,
   analytics: {},
   filter: "priority",
   sort: "priority",
@@ -129,6 +130,7 @@ function reasonLabel(item) {
   if (item.decision?.reason === "sensitive_content") return ["Atenção", "review"]
   if (item.decision?.reason === "human_requested") return ["Pediu uma pessoa", "review"]
   if (item.decision?.reason === "recent_automation") return ["Ver contexto", "review"]
+  if (item.decision?.reason === "account_not_live") return ["Conta protegida", "review"]
   if (item.decision?.outcome === "human_review") return ["Revisar", "review"]
   return ["Processando", ""]
 }
@@ -150,11 +152,19 @@ function hasFailedDelivery(item) {
   return item.outbound?.some((outbound) => outbound.status === "failed") ?? false
 }
 
+function canDeliverEvent(event) {
+  return (
+    state.integrations?.deliveryMode === "live" &&
+    state.integrations.liveAccounts?.includes(event.accountKey)
+  )
+}
+
 function priorityScore(item) {
   if (item.decision?.reason === "human_requested") return 120
   if (item.decision?.reason === "sensitive_content") return 110
   if (hasFailedDelivery(item)) return 105
   if (item.decision?.reason === "recent_automation") return 100
+  if (item.decision?.reason === "account_not_live") return 95
   if (isPendingReview(item)) return 90
   if (item.classification?.category === "qualified_lead") return 85
   if (item.classification?.category === "follow_up") return 80
@@ -168,6 +178,7 @@ function priorityLabel(item) {
   if (item.decision?.reason === "sensitive_content") return "Tema sensível"
   if (hasFailedDelivery(item)) return "Falha no envio"
   if (item.decision?.reason === "recent_automation") return "Evitar repetição"
+  if (item.decision?.reason === "account_not_live") return "Conta protegida"
   if (isPendingReview(item)) return "Responder"
   if (item.classification?.category === "qualified_lead") return "Lead qualificado"
   if (item.classification?.category === "follow_up") return "Fazer follow-up"
@@ -693,6 +704,7 @@ function reviewReasonText(reason) {
       sensitive_content: "Tema sensível: leia o contexto antes de responder.",
       human_requested: "A pessoa pediu atendimento humano.",
       recent_automation: "A automação foi interrompida para não repetir a mesma resposta.",
+      account_not_live: "Esta conta está protegida e não pode enviar respostas reais.",
       no_matching_automation: "Ainda não existe uma resposta automática confiável.",
     }[reason] ?? "Esta mensagem precisa de uma decisão humana."
   )
@@ -727,7 +739,7 @@ function createReviewComposer(item, { compact = false } = {}) {
   })
   const approve = element("button", {
     className: "primary-button",
-    text: "Enviar resposta",
+    text: canDeliverEvent(event) ? "Enviar resposta" : "Simular resposta",
     attributes: { type: "button" },
   })
   const reject = element("button", {
@@ -743,12 +755,16 @@ function createReviewComposer(item, { compact = false } = {}) {
     }
     approve.disabled = true
     try {
-      await api(`/v1/reviews/${encodeURIComponent(event.id)}/approve`, {
+      const result = await api(`/v1/reviews/${encodeURIComponent(event.id)}/approve`, {
         method: "POST",
         body: JSON.stringify({ text, target: select.value }),
       })
-      delete state.reviewDrafts[event.id]
-      showToast("Resposta enviada e registrada.")
+      if (result.status === "delivered") {
+        delete state.reviewDrafts[event.id]
+        showToast("Resposta enviada e registrada.")
+      } else {
+        showToast("Simulação registrada. Nada foi enviado e a conversa continua aberta.")
+      }
       await refresh()
     } catch (error) {
       showToast(error.message === "unauthorized" ? "Chave inválida." : "Não foi possível responder.")
@@ -813,6 +829,7 @@ function reviewCard(item) {
               sensitive_content: "Tema sensível",
               human_requested: "Pediu atendimento",
               recent_automation: "Resposta repetida evitada",
+              account_not_live: "Conta protegida",
               no_matching_automation: "Sem automação",
             }[item.decision.reason] ?? "Revisar",
         }),
@@ -1096,18 +1113,69 @@ function renderSetup() {
   for (const group of state.setup.groups) groups.append(setupGroupCard(group))
 }
 
+function renderReadiness() {
+  if (!state.readiness) return
+  const readiness = state.readiness
+  const stageLabels = {
+    configuration: ["Configuração incompleta", "blocked"],
+    "dry-run": ["Pronto para testar", "warning"],
+    attention: ["Live pede atenção", "blocked"],
+    live: ["Operação ao vivo", "ok"],
+  }
+  const [title, status] = stageLabels[readiness.stage] ?? ["Verificando", "warning"]
+  $("#readiness-title").textContent = title
+  const stage = $("#readiness-stage")
+  stage.textContent = readiness.stage === "dry-run" ? "dry-run" : title
+  stage.className = `readiness-stage ${status}`
+  $("#readiness-accounts").textContent = readiness.summary.configuredAccounts
+  $("#readiness-live").textContent = readiness.summary.liveAccounts
+  $("#readiness-inbound").textContent = readiness.summary.lastInboundAt
+    ? formatTime(readiness.summary.lastInboundAt)
+    : "nenhuma"
+  $("#readiness-failures").textContent = readiness.summary.failedDeliveries
+
+  const checks = $("#readiness-checks")
+  checks.replaceChildren()
+  for (const entry of readiness.checks) {
+    checks.append(
+      element("li", { className: `readiness-check ${entry.status}` }, [
+        element("span", { className: "readiness-check-dot", attributes: { "aria-hidden": "true" } }),
+        element("div", {}, [
+          element("strong", { text: entry.label }),
+          element("p", { text: entry.detail }),
+        ]),
+      ]),
+    )
+  }
+}
+
 function connectionCard(connection) {
+  const activity = state.readiness?.accounts.find((account) => account.key === connection.key)
+  const stateLabel = !connection.configured
+    ? "Pendente"
+    : connection.live
+      ? "Envio real"
+      : state.integrations?.deliveryMode === "live"
+        ? "Protegida"
+        : "Dry-run"
   return element("article", { className: "connection-card" }, [
     element("div", { className: "connection-head" }, [
       element("h4", { text: connection.label }),
       element("span", {
-        className: `connection-status ${connection.configured ? "ok" : "pending"}`,
-        text: connection.configured ? "Configurado" : "Pendente",
+        className: `connection-status ${connection.live ? "ok" : connection.configured ? "guarded" : "pending"}`,
+        text: stateLabel,
       }),
     ]),
     element("p", {
       text: `${connection.channel === "instagram" ? "Instagram" : "WhatsApp"} · ${connection.accountId ?? "ID ainda não informado"}`,
     }),
+    activity
+      ? element("p", {
+          text: activity.lastInboundAt
+            ? `Última entrada ${formatTime(activity.lastInboundAt)} · ${activity.pendingReviews} para revisar · ${activity.failedDeliveries} falhas`
+            : "Nenhum evento real recebido por esta conta.",
+        })
+      : null,
   ])
 }
 
@@ -1130,7 +1198,9 @@ function renderConnections() {
   )
   for (const connection of state.integrations.accounts) list.append(connectionCard(connection))
   const mode = state.integrations.deliveryMode ?? "dry-run"
-  $("#delivery-mode").textContent = `modo: ${mode}`
+  const liveCount = state.integrations.liveAccounts?.length ?? 0
+  $("#delivery-mode").textContent =
+    mode === "live" ? `live · ${liveCount} conta(s)` : "modo: dry-run"
   $("#delivery-mode").classList.toggle("live", mode === "live")
 }
 
@@ -1141,7 +1211,7 @@ function switchView(view) {
     backlog: ["CATÁLOGO", "Backlog e leads"],
     reviews: ["DECISÃO HUMANA", "Precisa de você"],
     automations: ["CONFIGURAÇÃO", "Respostas automáticas"],
-    setup: ["CONFIGURAÇÃO", "Instalação e acessos"],
+    setup: ["SEGURANÇA", "Pré-operação"],
   }
   for (const name of Object.keys(labels)) $(`#${name}-view`).hidden = name !== view
   $("#summary-strip").hidden = ["inbox", "automations", "setup"].includes(view)
@@ -1153,7 +1223,7 @@ function switchView(view) {
 async function refresh() {
   $("#sync-status").textContent = "Atualizando…"
   try {
-    const [summary, analytics, inbox, backlog, reviews, automations, integrations, setup] = await Promise.all([
+    const [summary, analytics, inbox, backlog, reviews, automations, integrations, setup, readiness] = await Promise.all([
       api("/v1/summary"),
       api("/v1/analytics"),
       api("/v1/inbox?limit=150"),
@@ -1162,6 +1232,7 @@ async function refresh() {
       api("/v1/automations"),
       api("/v1/integrations"),
       api("/v1/setup"),
+      api("/v1/readiness"),
     ])
     state.summary = summary
     state.analytics = analytics
@@ -1171,6 +1242,7 @@ async function refresh() {
     state.automations = automations
     state.integrations = integrations
     state.setup = setup
+    state.readiness = readiness
     renderSummary()
     renderAnalytics()
     renderInbox()
@@ -1179,6 +1251,7 @@ async function refresh() {
     renderAutomations()
     renderConnections()
     renderSetup()
+    renderReadiness()
     $("#sync-status").textContent = `Atualizado ${new Intl.DateTimeFormat("pt-BR", {
       hour: "2-digit",
       minute: "2-digit",

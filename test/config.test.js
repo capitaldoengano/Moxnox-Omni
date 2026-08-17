@@ -33,6 +33,7 @@ test("loads separate Instagram account credentials", () => {
   )
   assert.equal(config.metaApiVersion, "v26.0")
   assert.equal(config.automationCooldownMinutes, 1440)
+  assert.deepEqual(config.liveAccounts, [])
 })
 
 test("rejects template secrets in production", () => {
@@ -53,6 +54,7 @@ test("requires complete provider credential pairs in live mode", () => {
       loadConfig({
         NODE_ENV: "production",
         DELIVERY_MODE: "live",
+        LIVE_ACCOUNTS: "gu",
         ...productionSecrets,
         GU_INSTAGRAM_ACCOUNT_ID: "gu-id-without-a-token",
       }),
@@ -77,10 +79,37 @@ test("requires Meta webhook secrets before live delivery", () => {
       loadConfig({
         NODE_ENV: "production",
         DELIVERY_MODE: "live",
+        LIVE_ACCOUNTS: "webchat",
         ADMIN_API_KEY: productionSecrets.ADMIN_API_KEY,
         WEBCHAT_SITE_TOKEN: productionSecrets.WEBCHAT_SITE_TOKEN,
       }),
     /META_VERIFY_TOKEN/,
+  )
+})
+
+test("requires an explicit and valid live account scope", () => {
+  assert.throws(
+    () =>
+      loadConfig({
+        NODE_ENV: "production",
+        DELIVERY_MODE: "live",
+        ...productionSecrets,
+      }),
+    /LIVE_ACCOUNTS must explicitly list/,
+  )
+  assert.throws(
+    () => loadConfig({ LIVE_ACCOUNTS: "capital-do-engano,unknown" }),
+    /unknown accounts/,
+  )
+  assert.throws(
+    () =>
+      loadConfig({
+        NODE_ENV: "production",
+        DELIVERY_MODE: "live",
+        LIVE_ACCOUNTS: "capital-do-engano",
+        ...productionSecrets,
+      }),
+    /capital-do-engano is listed.*not configured/,
   )
 })
 

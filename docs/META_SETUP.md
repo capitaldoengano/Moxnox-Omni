@@ -21,6 +21,7 @@ explicit; review the official changelog before changing it.
 | `WHATSAPP_PHONE_NUMBER_ID` | Cloud API phone number ID | No |
 | `WHATSAPP_ACCESS_TOKEN` | WhatsApp Cloud API access token | Yes |
 | `PUBLIC_BASE_URL` | Public HTTPS origin of this service | No |
+| `LIVE_ACCOUNTS` | Comma-separated internal account keys explicitly allowed to send | No |
 
 Use a long-lived production token managed by the appropriate Meta business
 account. Temporary dashboard tokens are useful only for initial tests.
@@ -41,7 +42,14 @@ account. Temporary dashboard tokens are useful only for initial tests.
 8. Keep `DELIVERY_MODE=dry-run`, send test events and inspect `/cockpit`.
 9. Request the permissions and Advanced Access required by Meta before handling
    accounts that are not owned by app administrators or testers.
-10. Enable `DELIVERY_MODE=live` only after inbound and outbound tests succeed.
+10. Confirm that the account received a real event while still in `dry-run`.
+11. Set `LIVE_ACCOUNTS=capital-do-engano` to release only the first pilot account.
+12. Enable `DELIVERY_MODE=live` and restart only after the cockpit shows no blockers.
+
+Do not list every account on the first activation. A safe progression is
+`capital-do-engano`, then `capital-do-engano,gu`, and only later WhatsApp after
+its own inbound and outbound tests. A configured account outside
+`LIVE_ACCOUNTS` keeps recording planned deliveries without contacting Meta.
 
 The exact product names, permissions and review screens can change. Confirm the
 current requirements in the official documentation:

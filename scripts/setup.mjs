@@ -85,7 +85,7 @@ export async function runSetup({ rootDir = process.cwd(), input = process.stdin,
   output.write(`Chave do cockpit: ${generated.adminApiKey}\n`)
   output.write(`Token de verificação Meta: ${generated.metaVerifyToken}\n`)
   output.write("\nGuarde esses valores. Agora rode npm start e abra /cockpit.\n")
-  output.write("No cockpit, entre em Instalação para completar as credenciais da Meta.\n")
+  output.write("No cockpit, entre em Operação para completar e testar as credenciais da Meta.\n")
   return { destinationPath, publicBaseUrl, generated }
 }
 

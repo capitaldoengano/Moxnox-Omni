@@ -63,6 +63,15 @@ export function buildSetupStatus(config) {
           String(config.automationCooldownMinutes ?? ""),
           "Definido no .env; 1440 equivale a 24 horas",
         ),
+        item(
+          "LIVE_ACCOUNTS",
+          "Contas liberadas para envio real",
+          config.deliveryMode === "dry-run"
+            ? "dry-run"
+            : (config.liveAccounts ?? []).join(","),
+          "No modo live, use uma lista explícita no .env; comece apenas com capital-do-engano",
+          { required: false },
+        ),
       ],
     },
     {

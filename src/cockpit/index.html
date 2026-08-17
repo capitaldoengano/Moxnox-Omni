@@ -45,7 +45,7 @@
         <div>
           <p class="eyebrow">MOXNOX OMNI</p>
           <h1 class="brand">cockpit<span>.</span></h1>
-          <p class="internal-badge">interno · v0.7</p>
+          <p class="internal-badge">interno · v0.8</p>
         </div>
 
         <nav class="main-nav" aria-label="Seções">
@@ -65,7 +65,7 @@
             <span>Automações</span>
           </button>
           <button class="nav-item" data-view="setup">
-            <span>Instalação</span>
+            <span>Operação</span>
           </button>
         </nav>
 
@@ -322,14 +322,31 @@
         <section id="setup-view" class="view-panel" hidden>
           <div class="section-intro">
             <div>
-              <p class="eyebrow">PRIMEIROS PASSOS</p>
-              <h3>Instalação sem caça ao tesouro</h3>
+              <p class="eyebrow">PRÉ-OPERAÇÃO</p>
+              <h3>Antes de abrir as comportas</h3>
             </div>
             <p>
-              O terminal liga a máquina; o navegador conduz o trabalho. Aqui você vê o
-              que já está pronto, o que falta e onde buscar cada dado.
+              O painel separa configuração, teste e envio real. Aqui você vê o que já
+              foi comprovado antes de liberar cada conta.
             </p>
           </div>
+
+          <article id="readiness-card" class="readiness-card">
+            <div class="readiness-head">
+              <div>
+                <p class="eyebrow">ESTADO DO PILOTO</p>
+                <h4 id="readiness-title">Verificando a operação…</h4>
+              </div>
+              <span id="readiness-stage" class="readiness-stage">verificando</span>
+            </div>
+            <div class="readiness-metrics">
+              <div><span>Contas configuradas</span><strong id="readiness-accounts">0</strong></div>
+              <div><span>Envio real</span><strong id="readiness-live">0</strong></div>
+              <div><span>Última entrada</span><strong id="readiness-inbound">—</strong></div>
+              <div><span>Falhas</span><strong id="readiness-failures">0</strong></div>
+            </div>
+            <ul id="readiness-checks" class="readiness-checks"></ul>
+          </article>
 
           <div id="setup-access" class="setup-access"></div>
 

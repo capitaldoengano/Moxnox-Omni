@@ -37,6 +37,16 @@ export function createPipeline({ store, rules, dispatcher, automationCooldownMs 
       let decision = decideEvent(event, activeRules)
       if (
         decision.outcome === "automated" &&
+        dispatcher.modeFor?.(event) === "protected"
+      ) {
+        decision = {
+          outcome: "human_review",
+          reason: "account_not_live",
+          ruleId: decision.ruleId,
+        }
+      }
+      if (
+        decision.outcome === "automated" &&
         store.hasRecentAutomation(event, decision.ruleId, automationCooldownMs)
       ) {
         decision = {
@@ -58,7 +68,9 @@ export function createPipeline({ store, rules, dispatcher, automationCooldownMs 
       if (!event) throw new Error("Event not found")
       const outbound = { id: randomUUID(), target, text }
       const result = await deliver(event, outbound)
-      await store.resolveReview(eventId, { outcome: "approved", outboundId: outbound.id })
+      if (result.status === "delivered") {
+        await store.resolveReview(eventId, { outcome: "approved", outboundId: outbound.id })
+      }
       return result
     },
 
