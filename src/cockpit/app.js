@@ -6,6 +6,7 @@ const state = {
   automations: [],
   summary: {},
   integrations: null,
+  setup: null,
   filter: "all",
   backlogFilter: "open",
   search: "",
@@ -497,6 +498,147 @@ function renderAutomations() {
   for (const rule of state.automations) list.append(automationCard(rule))
 }
 
+async function copyText(value, successMessage) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value)
+    } else {
+      const fallback = element("textarea", { attributes: { readonly: "" } })
+      fallback.value = value
+      document.body.append(fallback)
+      fallback.select()
+      document.execCommand("copy")
+      fallback.remove()
+    }
+    showToast(successMessage)
+  } catch {
+    showToast("Não foi possível copiar automaticamente.")
+  }
+}
+
+function copyButton(value, label = "Copiar") {
+  const button = element("button", {
+    className: "secondary-button compact-button",
+    text: label,
+    attributes: { type: "button" },
+  })
+  button.addEventListener("click", () => copyText(value, "Copiado."))
+  return button
+}
+
+function accessCard(kicker, title, value, description, copyLabel = "Copiar") {
+  const actions = []
+  if (value) actions.push(copyButton(value, copyLabel))
+  return element("article", { className: "access-card" }, [
+    element("p", { className: "eyebrow", text: kicker }),
+    element("h4", { text: title }),
+    value ? element("code", { className: "access-value", text: value }) : null,
+    element("p", { text: description }),
+    actions.length ? element("div", { className: "card-actions" }, actions) : null,
+  ])
+}
+
+function setupItemCard(entry) {
+  const details = element("div", { className: "setup-item-copy" }, [
+    element("strong", { text: entry.label }),
+    element("code", { text: entry.key }),
+    element("p", { text: entry.source }),
+  ])
+  const status = element("span", {
+    className: `connection-status ${entry.configured ? "ok" : "pending"}`,
+    text: entry.configured ? "Pronto" : "Falta",
+  })
+  const trailing = [status]
+  if (entry.docsUrl) {
+    trailing.push(
+      element("a", {
+        className: "docs-link",
+        text: "Abrir guia oficial",
+        attributes: {
+          href: entry.docsUrl,
+          target: "_blank",
+          rel: "noreferrer",
+        },
+      }),
+    )
+  }
+  return element("li", { className: "setup-item" }, [
+    element("span", {
+      className: `setup-dot ${entry.configured ? "ok" : "pending"}`,
+      attributes: { "aria-hidden": "true" },
+    }),
+    details,
+    element("div", { className: "setup-item-actions" }, trailing),
+  ])
+}
+
+function setupGroupCard(group) {
+  const configured = group.items.filter((entry) => entry.configured).length
+  const list = element("ul", { className: "setup-items" })
+  for (const entry of group.items) list.append(setupItemCard(entry))
+  return element("article", { className: "setup-group-card" }, [
+    element("div", { className: "setup-group-head" }, [
+      element("div", {}, [
+        element("h4", { text: group.title }),
+        element("p", { text: group.description }),
+      ]),
+      element("strong", { text: `${configured}/${group.items.length}` }),
+    ]),
+    list,
+  ])
+}
+
+function renderSetup() {
+  if (!state.setup) return
+  const access = $("#setup-access")
+  access.replaceChildren(
+    accessCard(
+      "1 · PREPARAR",
+      "Gerar o arquivo seguro",
+      "npm run setup",
+      "Rode uma vez na pasta do projeto. A chave do cockpit será mostrada no terminal.",
+    ),
+    accessCard(
+      "2 · LIGAR",
+      "Iniciar o serviço",
+      "npm start",
+      "O terminal mantém o processo ligado. Em Docker, use docker compose up -d --build.",
+    ),
+    accessCard(
+      "3 · ACESSAR",
+      "Abrir pelo navegador",
+      state.setup.access.cockpitUrl,
+      "Depois da partida, o uso cotidiano acontece no cockpit — não no terminal.",
+      "Copiar URL",
+    ),
+    accessCard(
+      "4 · CONECTAR META",
+      "URL do webhook",
+      state.setup.access.webhookUrl,
+      "Cole esta URL no campo Callback URL do webhook no painel da Meta.",
+      "Copiar webhook",
+    ),
+  )
+
+  const progress = state.setup.progress
+  $("#setup-progress-value").textContent = `${progress.percentage}%`
+  $("#setup-progress-label").textContent = `${progress.configured} de ${progress.total} itens configurados`
+  $("#setup-progress-bar").style.width = `${progress.percentage}%`
+  if (state.setup.network.webhookCanBeRegistered) {
+    $("#setup-network-note").textContent = "A URL pública usa HTTPS e pode ser registrada como webhook."
+  } else if (state.setup.network.publicUrlIsLocal) {
+    $("#setup-network-note").textContent =
+      "localhost serve para conhecer o painel, mas a Meta precisa de uma URL pública HTTPS para entregar mensagens."
+  } else {
+    $("#setup-network-note").textContent =
+      "A URL pública ainda precisa usar HTTPS antes de registrar o webhook na Meta."
+  }
+
+  const groups = $("#setup-group-list")
+  groups.replaceChildren()
+  for (const group of state.setup.groups) groups.append(setupGroupCard(group))
+}
+
 function connectionCard(connection) {
   return element("article", { className: "connection-card" }, [
     element("div", { className: "connection-head" }, [
@@ -542,10 +684,10 @@ function switchView(view) {
     backlog: ["CATÁLOGO", "Backlog e leads"],
     reviews: ["DECISÃO HUMANA", "Precisa de você"],
     automations: ["CONFIGURAÇÃO", "Respostas automáticas"],
-    connections: ["CONFIGURAÇÃO", "Conexões"],
+    setup: ["CONFIGURAÇÃO", "Instalação e acessos"],
   }
   for (const name of Object.keys(labels)) $(`#${name}-view`).hidden = name !== view
-  $("#summary-strip").hidden = ["automations", "connections"].includes(view)
+  $("#summary-strip").hidden = ["automations", "setup"].includes(view)
   $("#view-kicker").textContent = labels[view][0]
   $("#view-title").textContent = labels[view][1]
   $$(".nav-item").forEach((button) => button.classList.toggle("is-active", button.dataset.view === view))
@@ -554,13 +696,14 @@ function switchView(view) {
 async function refresh() {
   $("#sync-status").textContent = "Atualizando…"
   try {
-    const [summary, inbox, backlog, reviews, automations, integrations] = await Promise.all([
+    const [summary, inbox, backlog, reviews, automations, integrations, setup] = await Promise.all([
       api("/v1/summary"),
       api("/v1/inbox?limit=150"),
       api("/v1/backlog?scope=all"),
       api("/v1/reviews"),
       api("/v1/automations"),
       api("/v1/integrations"),
+      api("/v1/setup"),
     ])
     state.summary = summary
     state.inbox = inbox
@@ -568,12 +711,14 @@ async function refresh() {
     state.reviews = reviews
     state.automations = automations
     state.integrations = integrations
+    state.setup = setup
     renderSummary()
     renderInbox()
     renderBacklog()
     renderReviews()
     renderAutomations()
     renderConnections()
+    renderSetup()
     $("#sync-status").textContent = `Atualizado ${new Intl.DateTimeFormat("pt-BR", {
       hour: "2-digit",
       minute: "2-digit",

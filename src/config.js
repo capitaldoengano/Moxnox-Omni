@@ -35,7 +35,7 @@ export function loadConfig(env = process.env) {
     metaAppId: clean(env.META_APP_ID),
     metaVerifyToken: clean(env.META_VERIFY_TOKEN),
     metaAppSecret: clean(env.META_APP_SECRET),
-    metaApiVersion: clean(env.META_API_VERSION) || "v23.0",
+    metaApiVersion: clean(env.META_API_VERSION) || "v26.0",
     facebookGraphBaseUrl:
       clean(env.FACEBOOK_GRAPH_BASE_URL) || "https://graph.facebook.com",
     instagramGraphBaseUrl:
@@ -67,8 +67,6 @@ export function loadConfig(env = process.env) {
     for (const [name, value] of [
       ["ADMIN_API_KEY", config.adminApiKey],
       ["WEBCHAT_SITE_TOKEN", config.webchatSiteToken],
-      ["META_VERIFY_TOKEN", config.metaVerifyToken],
-      ["META_APP_SECRET", config.metaAppSecret],
     ]) {
       if (value.length < MIN_SECRET_LENGTH || isTemplateValue(value)) {
         throw new Error(
@@ -79,6 +77,16 @@ export function loadConfig(env = process.env) {
   }
 
   if (config.deliveryMode === "live") {
+    for (const [name, value] of [
+      ["META_VERIFY_TOKEN", config.metaVerifyToken],
+      ["META_APP_SECRET", config.metaAppSecret],
+    ]) {
+      if (value.length < MIN_SECRET_LENGTH || isTemplateValue(value)) {
+        throw new Error(
+          `${name} must be a non-template secret with at least ${MIN_SECRET_LENGTH} characters`,
+        )
+      }
+    }
     for (const account of config.instagramAccounts) {
       if (Boolean(account.accountId) !== Boolean(account.accessToken)) {
         throw new Error(

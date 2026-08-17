@@ -9,7 +9,7 @@ deduplicates events, evaluates deterministic rules and records proposed
 responses without contacting a provider. Live delivery must be enabled
 explicitly after credentials and Meta permissions are validated.
 
-## What works in v0.4
+## What works in v0.5
 
 - Meta webhook verification and HMAC-SHA256 signature validation.
 - Instagram comments and DMs, Facebook Page comments and DMs, and WhatsApp text.
@@ -28,6 +28,8 @@ explicitly after credentials and Meta permissions are validated.
 - Persistent automation overrides in the writable data volume.
 - Backlog catalog with automatic suggestions and auditable manual classification.
 - Dedicated views and counters for unclassified messages and potential leads.
+- Safe first-run installer that creates local secrets without overwriting `.env`.
+- Browser installation checklist with progress, webhook URL and official Meta links.
 - Dependency-free Node.js runtime, tests, Docker image and CI.
 
 ## Quick start
@@ -35,7 +37,7 @@ explicitly after credentials and Meta permissions are validated.
 Requirements: Node.js 24 or Docker 24+.
 
 ```bash
-cp .env.example .env
+npm run setup
 npm test
 npm start
 ```
@@ -47,8 +49,10 @@ docker compose up --build
 ```
 
 Open `http://localhost:3333/cockpit` and enter the value configured in
-`ADMIN_API_KEY`. The key is kept in browser session storage and disappears when
-the tab is closed.
+`ADMIN_API_KEY`. The installer prints this value once and also stores it in the
+untracked `.env` file. The key is kept in browser session storage and disappears
+when the tab is closed. After login, open **Instalação** for the guided Meta
+checklist.
 
 Do not set `DELIVERY_MODE=live` until the correct provider credentials,
 permissions and webhook subscriptions have been tested in a non-production
@@ -71,6 +75,7 @@ Meta app.
 | `PUT` | `/v1/automations/:id` | Create or replace a validated rule |
 | `POST` | `/v1/automations/test` | Simulate matching without sending anything |
 | `GET` | `/v1/integrations` | Credential status without revealing secrets |
+| `GET` | `/v1/setup` | First-run checklist, access URLs and official guides |
 | `POST` | `/v1/inbox/:id/classification` | Append a backlog classification and note |
 | `POST` | `/v1/reviews/:id/approve` | Approve and deliver a reply |
 | `POST` | `/v1/reviews/:id/reject` | Close without replying |
@@ -100,6 +105,7 @@ not legal advice.
 - [Commercial model](docs/COMMERCIAL_MODEL.md)
 - [Data protection baseline](docs/DATA_PROTECTION.md)
 - [Meta setup](docs/META_SETUP.md)
+- [Installation and first access](docs/INSTALLATION.md)
 - [Automation rules](docs/AUTOMATIONS.md)
 - [Security policy](SECURITY.md)
 - [Contributing](CONTRIBUTING.md)

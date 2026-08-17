@@ -31,6 +31,7 @@ test("loads separate Instagram account credentials", () => {
       { key: "gu", label: "@ogustavosouzapauli", accountId: "gu-id" },
     ],
   )
+  assert.equal(config.metaApiVersion, "v26.0")
 })
 
 test("rejects template secrets in production", () => {
@@ -55,5 +56,29 @@ test("requires complete provider credential pairs in live mode", () => {
         GU_INSTAGRAM_ACCOUNT_ID: "gu-id-without-a-token",
       }),
     /requires both an Instagram account ID and access token/,
+  )
+})
+
+test("allows the production cockpit to start before Meta is connected", () => {
+  const config = loadConfig({
+    NODE_ENV: "production",
+    DELIVERY_MODE: "dry-run",
+    ADMIN_API_KEY: productionSecrets.ADMIN_API_KEY,
+    WEBCHAT_SITE_TOKEN: productionSecrets.WEBCHAT_SITE_TOKEN,
+  })
+  assert.equal(config.metaAppSecret, "")
+  assert.equal(config.deliveryMode, "dry-run")
+})
+
+test("requires Meta webhook secrets before live delivery", () => {
+  assert.throws(
+    () =>
+      loadConfig({
+        NODE_ENV: "production",
+        DELIVERY_MODE: "live",
+        ADMIN_API_KEY: productionSecrets.ADMIN_API_KEY,
+        WEBCHAT_SITE_TOKEN: productionSecrets.WEBCHAT_SITE_TOKEN,
+      }),
+    /META_VERIFY_TOKEN/,
   )
 })

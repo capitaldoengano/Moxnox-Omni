@@ -81,6 +81,15 @@ test("serves the cockpit and exposes authenticated operational data", async (t) 
   assert.equal(integrations.accounts.every((account) => account.configured), true)
   assert.equal(integrations.webhook.url, "https://omni.example.test/webhooks/meta")
 
+  const setupResponse = await fetch(`${baseUrl}/v1/setup`, { headers })
+  const setupText = await setupResponse.text()
+  assert.equal(setupResponse.status, 200)
+  assert.doesNotMatch(setupText, /must-not-leak/)
+  const setup = JSON.parse(setupText).data
+  assert.equal(setup.access.method, "browser")
+  assert.equal(setup.access.cockpitUrl, "https://omni.example.test/cockpit")
+  assert.equal(setup.groups.some((group) => group.id === "instagram-gu"), true)
+
   const inbound = await fetch(`${baseUrl}/v1/webchat/messages`, {
     method: "POST",
     headers: {

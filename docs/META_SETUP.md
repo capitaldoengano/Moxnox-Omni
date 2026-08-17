@@ -3,6 +3,9 @@
 The repository never contains production credentials. Configure them only in
 the deployment environment or in an untracked local `.env` file.
 
+The default is Graph API `v26.0`. Pinning the version makes provider behavior
+explicit; review the official changelog before changing it.
+
 ## Values required by Moxnox Omni
 
 | Environment variable | Where it comes from | Secret |
@@ -43,10 +46,18 @@ account. Temporary dashboard tokens are useful only for initial tests.
 The exact product names, permissions and review screens can change. Confirm the
 current requirements in the official documentation:
 
-- [Meta webhooks](https://developers.facebook.com/docs/graph-api/webhooks/getting-started/)
-- [Instagram API with Instagram Login](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/)
-- [Instagram messaging](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/)
-- [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api/)
+- [Meta app basic settings](https://developers.facebook.com/documentation/development/create-an-app/app-dashboard/basic-settings)
+- [Instagram webhooks](https://developers.facebook.com/documentation/instagram-platform/webhooks)
+- [Instagram API with Instagram Login](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login)
+- [Instagram business login](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/business-login)
+- [WhatsApp Cloud API](https://developers.facebook.com/documentation/business-messaging/whatsapp/get-started)
+- [Graph API changelog](https://developers.facebook.com/docs/graph-api/changelog/)
+
+For this Instagram Login implementation, request
+`instagram_business_basic`, `instagram_business_manage_messages` and
+`instagram_business_manage_comments`. WhatsApp sending requires
+`whatsapp_business_messaging`; production administration may also require
+`whatsapp_business_management`.
 
 ## Security rules
 

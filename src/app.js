@@ -9,6 +9,7 @@ import {
 } from "./domain/classification.js"
 import { normalizeMetaPayload } from "./domain/normalize-meta.js"
 import { decideEvent } from "./domain/rules.js"
+import { buildSetupStatus } from "./domain/setup-status.js"
 import { readRawBody, sendAsset, sendJson, sendText } from "./lib/http.js"
 import { safeEqual, verifyMetaSignature } from "./lib/security.js"
 
@@ -298,6 +299,10 @@ export function createApp({ config, store, queue, pipeline, automationStore = nu
 
       if (request.method === "GET" && url.pathname === "/v1/integrations") {
         return sendJson(response, 200, { data: integrations(config) })
+      }
+
+      if (request.method === "GET" && url.pathname === "/v1/setup") {
+        return sendJson(response, 200, { data: buildSetupStatus(config) })
       }
 
       const approveMatch = url.pathname.match(/^\/v1\/reviews\/([^/]+)\/approve$/)

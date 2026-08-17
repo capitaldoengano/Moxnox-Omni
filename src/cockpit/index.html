@@ -32,6 +32,10 @@
           </div>
           <p id="login-error" class="form-error" role="alert"></p>
         </form>
+        <p class="first-access-note">
+          Primeiro acesso? Rode <code>npm run setup</code> uma vez no terminal. O
+          instalador cria a chave do cockpit e explica o próximo passo.
+        </p>
         <p class="privacy-note">A chave fica somente nesta aba e some ao fechá-la.</p>
       </section>
     </main>
@@ -41,7 +45,7 @@
         <div>
           <p class="eyebrow">MOXNOX OMNI</p>
           <h1 class="brand">cockpit<span>.</span></h1>
-          <p class="internal-badge">interno · v0.4</p>
+          <p class="internal-badge">interno · v0.5</p>
         </div>
 
         <nav class="main-nav" aria-label="Seções">
@@ -60,8 +64,8 @@
           <button class="nav-item" data-view="automations">
             <span>Automações</span>
           </button>
-          <button class="nav-item" data-view="connections">
-            <span>Conexões</span>
+          <button class="nav-item" data-view="setup">
+            <span>Instalação</span>
           </button>
         </nav>
 
@@ -294,24 +298,51 @@
           </form>
         </section>
 
-        <section id="connections-view" class="view-panel" hidden>
+        <section id="setup-view" class="view-panel" hidden>
           <div class="section-intro">
             <div>
-              <p class="eyebrow">META</p>
-              <h3>Conexões e credenciais</h3>
+              <p class="eyebrow">PRIMEIROS PASSOS</p>
+              <h3>Instalação sem caça ao tesouro</h3>
             </div>
             <p>
-              O cockpit mostra apenas o estado das integrações. Tokens e segredos nunca
-              aparecem aqui.
+              O terminal liga a máquina; o navegador conduz o trabalho. Aqui você vê o
+              que já está pronto, o que falta e onde buscar cada dado.
             </p>
+          </div>
+
+          <div id="setup-access" class="setup-access"></div>
+
+          <article class="setup-progress-card">
+            <div class="setup-progress-head">
+              <div>
+                <p class="eyebrow">PROGRESSO</p>
+                <h4 id="setup-progress-label">Verificando configuração…</h4>
+              </div>
+              <strong id="setup-progress-value">0%</strong>
+            </div>
+            <div class="progress-track" aria-hidden="true">
+              <span id="setup-progress-bar"></span>
+            </div>
+            <p id="setup-network-note" class="muted-copy"></p>
+          </article>
+
+          <div id="setup-group-list" class="setup-group-list"></div>
+
+          <div class="subsection-heading">
+            <div>
+              <p class="eyebrow">DIAGNÓSTICO RÁPIDO</p>
+              <h3>Conexões reconhecidas</h3>
+            </div>
+            <p>Somente estado e IDs mascarados. Segredo bom é segredo entediante.</p>
           </div>
           <div id="connection-list" class="connection-grid"></div>
           <article class="setup-note">
-            <p class="eyebrow">PRÓXIMA AÇÃO</p>
-            <h4>Complete o arquivo <code>.env</code> no servidor</h4>
+            <p class="eyebrow">COMO APLICAR ALTERAÇÕES</p>
+            <h4>Edite <code>.env</code> e reinicie o serviço</h4>
             <p>
-              Depois de configurar as contas na Meta, reinicie o serviço e valide tudo em
-              <strong>dry-run</strong> antes de habilitar envios reais.
+              Com Node, use <code>npm start</code>. Com Docker, use
+              <code>docker compose up -d --build</code>. Mantenha
+              <strong>dry-run</strong> até os testes reais de entrada e saída terminarem.
             </p>
           </article>
         </section>
