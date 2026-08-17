@@ -8,9 +8,13 @@ const state = {
   integrations: null,
   setup: null,
   analytics: {},
-  filter: "all",
+  filter: "priority",
+  sort: "priority",
   backlogFilter: "open",
   search: "",
+  selectedEventId: null,
+  reviewDrafts: {},
+  historyReturnFocus: null,
   currentView: "inbox",
   refreshTimer: null,
 }
@@ -129,6 +133,59 @@ function reasonLabel(item) {
   return ["Processando", ""]
 }
 
+function isPendingReview(item) {
+  return item.decision?.outcome === "human_review" && !item.resolution
+}
+
+function isLead(item) {
+  return (
+    item.analysis?.intent === "sales" ||
+    ["potential_lead", "qualified_lead", "follow_up"].includes(
+      item.classification?.category,
+    )
+  )
+}
+
+function hasFailedDelivery(item) {
+  return item.outbound?.some((outbound) => outbound.status === "failed") ?? false
+}
+
+function priorityScore(item) {
+  if (item.decision?.reason === "human_requested") return 120
+  if (item.decision?.reason === "sensitive_content") return 110
+  if (hasFailedDelivery(item)) return 105
+  if (item.decision?.reason === "recent_automation") return 100
+  if (isPendingReview(item)) return 90
+  if (item.classification?.category === "qualified_lead") return 85
+  if (item.classification?.category === "follow_up") return 80
+  if (item.classification?.category === "potential_lead") return 70
+  if (item.analysis?.intent === "sales") return 65
+  return 0
+}
+
+function priorityLabel(item) {
+  if (item.decision?.reason === "human_requested") return "Pediu atendimento"
+  if (item.decision?.reason === "sensitive_content") return "Tema sensível"
+  if (hasFailedDelivery(item)) return "Falha no envio"
+  if (item.decision?.reason === "recent_automation") return "Evitar repetição"
+  if (isPendingReview(item)) return "Responder"
+  if (item.classification?.category === "qualified_lead") return "Lead qualificado"
+  if (item.classification?.category === "follow_up") return "Fazer follow-up"
+  if (isLead(item)) return "Potencial lead"
+  return null
+}
+
+function ageLabel(value) {
+  const elapsed = Math.max(0, Date.now() - Date.parse(value))
+  const minutes = Math.floor(elapsed / 60_000)
+  if (minutes < 1) return "agora"
+  if (minutes < 60) return `há ${minutes}min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `há ${hours}h`
+  const days = Math.floor(hours / 24)
+  return `há ${days}d`
+}
+
 function formatDuration(seconds) {
   if (seconds === null || seconds === undefined) return "—"
   if (seconds < 60) return `${seconds}s`
@@ -161,82 +218,295 @@ function renderAnalytics() {
 
 function historyButton(event) {
   const button = element("button", {
-    className: "history-button",
-    text: "Ver histórico",
+    className: "secondary-button compact-button history-button",
+    text: "Histórico",
     attributes: { type: "button" },
   })
   button.addEventListener("click", () => openContactHistory(event))
   return button
 }
 
-function messageCard(item) {
+function confirmLeadButton(item) {
+  if (
+    item.classification?.category !== "potential_lead" ||
+    item.classification?.source === "manual"
+  ) {
+    return null
+  }
+  const button = element("button", {
+    className: "secondary-button compact-button",
+    text: "Confirmar lead",
+    attributes: { type: "button" },
+  })
+  button.addEventListener("click", async () => {
+    button.disabled = true
+    try {
+      await api(`/v1/inbox/${encodeURIComponent(item.event.id)}/classification`, {
+        method: "POST",
+        body: JSON.stringify({
+          category: "potential_lead",
+          note: "Lead confirmado na fila de mensagens",
+        }),
+      })
+      showToast("Lead confirmado e registrado.")
+      await refresh()
+    } catch {
+      showToast("Não foi possível confirmar o lead.")
+      button.disabled = false
+    }
+  })
+  return button
+}
+
+function conversationItem(item) {
   const event = item.event
   const name = contactName(event)
-  const [status, statusClass] = reasonLabel(item)
-  const latestOutbound = item.outbound?.at(-1)
-  const identity = element("div", { className: "identity" }, [
+  const nextAction = priorityLabel(item)
+  const button = element("button", {
+    className: `conversation-item ${state.selectedEventId === event.id ? "is-selected" : ""}`,
+    attributes: {
+      type: "button",
+      "aria-pressed": String(state.selectedEventId === event.id),
+    },
+  }, [
     element("span", { className: "avatar", text: initials(name) }),
-    element("div", {}, [
-      element("strong", { text: name }),
-      element("span", { text: event.accountLabel }),
+    element("span", { className: "conversation-item-copy" }, [
+      element("span", { className: "conversation-item-line" }, [
+        element("strong", { text: name }),
+        element("small", { text: ageLabel(item.receivedAt) }),
+      ]),
+      element("span", { className: "conversation-preview", text: event.text || "[sem texto]" }),
+      element("span", { className: "conversation-item-line detail" }, [
+        element("small", { text: channelLabel(event) }),
+        nextAction ? element("small", { className: "conversation-priority", text: nextAction }) : null,
+      ]),
     ]),
   ])
-  const meta = element("div", { className: "message-meta" }, [
-    identity,
-    element("span", { className: "timestamp", text: formatTime(item.receivedAt) }),
-  ])
-  const footer = element("div", { className: "message-footer" }, [
-    element("span", { className: "channel-tag", text: channelLabel(event) }),
-    element("div", { className: "message-tags" }, [
-      element("span", {
-        className: `status-tag ${item.analysis?.intent === "sales" ? "sales" : ""}`,
-        text: item.analysis?.label ?? "Conversa",
-      }),
-      element("span", { className: `status-tag ${statusClass}`, text: status }),
-      historyButton(event),
-    ]),
-  ])
-  const children = [meta, element("p", { className: "message-text", text: event.text || "[sem texto]" })]
-  if (latestOutbound?.text) {
-    children.push(
-      element("p", {
-        className: "response-preview",
-        text: `Resposta ${latestOutbound.status === "planned" ? "planejada" : "registrada"}: ${latestOutbound.text}`,
-      }),
-    )
+  button.addEventListener("click", () => {
+    state.selectedEventId = event.id
+    renderInbox()
+  })
+  return button
+}
+
+function matchesInboxFilter(item, filter) {
+  if (filter === "priority") return priorityScore(item) > 0
+  if (filter === "all") return true
+  if (filter === "review") return isPendingReview(item)
+  if (filter === "sales") return isLead(item)
+  return false
+}
+
+function sortInbox(items) {
+  return [...items].sort((left, right) => {
+    const leftTime = Date.parse(left.receivedAt)
+    const rightTime = Date.parse(right.receivedAt)
+    if (state.filter === "priority" || state.filter === "review") {
+      const scoreDifference = priorityScore(right) - priorityScore(left)
+      return scoreDifference || leftTime - rightTime
+    }
+    return rightTime - leftTime
+  })
+}
+
+function conversationKey(item) {
+  const event = item.event
+  return event.contactId
+    ? `${event.channel}:${event.accountId}:${event.contactId}`
+    : event.id
+}
+
+function groupConversations(items) {
+  const groups = new Map()
+  for (const item of items) {
+    const key = conversationKey(item)
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(item)
   }
-  children.push(footer)
-  return element("article", { className: "message-card" }, children)
+  return [...groups.values()].map((candidates) => {
+    const pending = candidates.filter(isPendingReview)
+    if (pending.length) return sortInbox(pending)[0]
+    return [...candidates].sort(
+      (left, right) => Date.parse(right.receivedAt) - Date.parse(left.receivedAt),
+    )[0]
+  })
+}
+
+function inboxSearchMatches(item, needle) {
+  const event = item.event
+  return [
+    event.text,
+    event.contactName,
+    event.accountLabel,
+    channelLabel(event),
+    item.analysis?.label,
+    classificationLabels[item.classification?.category],
+  ]
+    .join(" ")
+    .toLocaleLowerCase("pt-BR")
+    .includes(needle)
+}
+
+function inboxItems(filter, needle = "") {
+  return groupConversations(
+    state.inbox.filter(
+      (item) => matchesInboxFilter(item, filter) && inboxSearchMatches(item, needle),
+    ),
+  )
+}
+
+function updateInboxCounts() {
+  for (const filter of ["priority", "review", "sales", "all"]) {
+    const count = inboxItems(filter).length
+    const node = $(`[data-filter-count="${filter}"]`)
+    if (node) node.textContent = count
+  }
+}
+
+function setInboxFilter(filter) {
+  state.filter = filter
+  $$("#inbox-filters .conversation-tab").forEach((candidate) => {
+    candidate.classList.toggle("is-active", candidate.dataset.filter === filter)
+    candidate.setAttribute("aria-pressed", String(candidate.dataset.filter === filter))
+  })
+  renderInbox()
+}
+
+function conversationEmpty(title = "Selecione uma conversa", description = "O histórico e as ações aparecem aqui.") {
+  return element("div", { className: "conversation-empty" }, [
+    element("span", { className: "conversation-empty-mark", text: "M." }),
+    element("h3", { text: title }),
+    element("p", { text: description }),
+  ])
+}
+
+function openItemInBacklog(item) {
+  const category = item.classification?.category
+  const visibleFilters = new Set([
+    "unclassified",
+    "potential_lead",
+    "qualified_lead",
+    "follow_up",
+    "customer",
+  ])
+  state.backlogFilter = closedClassifications.has(category)
+    ? "closed"
+    : visibleFilters.has(category)
+      ? category
+      : "open"
+  $$('[data-backlog-filter]').forEach((candidate) =>
+    candidate.classList.toggle("is-active", candidate.dataset.backlogFilter === state.backlogFilter),
+  )
+  switchView("backlog")
+  renderBacklog()
+}
+
+async function renderConversationDetail(item) {
+  const detail = $("#conversation-detail")
+  if (!item) {
+    detail.replaceChildren(conversationEmpty())
+    return
+  }
+  const event = item.event
+  const requestedId = event.id
+  const name = contactName(event)
+  const [status, statusClass] = reasonLabel(item)
+  const backlog = element("button", {
+    className: "secondary-button compact-button",
+    text: "Classificar",
+    attributes: { type: "button" },
+  })
+  backlog.addEventListener("click", () => openItemInBacklog(item))
+  const timeline = element("div", { className: "conversation-timeline" }, [
+    element("p", { className: "muted-copy", text: "Carregando histórico…" }),
+  ])
+  const actions = [backlog, confirmLeadButton(item)]
+  detail.replaceChildren(
+    element("header", { className: "conversation-detail-head" }, [
+      element("div", { className: "identity" }, [
+        element("span", { className: "avatar", text: initials(name) }),
+        element("div", {}, [
+          element("strong", { text: name }),
+          element("span", { text: `${event.accountLabel} · ${channelLabel(event)}` }),
+        ]),
+      ]),
+      element("div", { className: "conversation-detail-actions" }, [
+        element("span", { className: `status-tag ${statusClass}`, text: status }),
+        ...actions,
+      ]),
+    ]),
+    timeline,
+    isPendingReview(item)
+      ? createReviewComposer(item, { compact: true })
+      : element("div", { className: "conversation-closed-state" }, [
+          element("strong", { text: item.resolution ? "Atendimento concluído" : "Automação registrada" }),
+          element("span", {
+            text: item.resolution
+              ? "A conversa permanece disponível para consulta."
+              : "Se precisar de intervenção humana, use a classificação para organizar o próximo passo.",
+          }),
+        ]),
+  )
+  try {
+    const records = await api(`/v1/inbox/${encodeURIComponent(event.id)}/history`)
+    if (state.selectedEventId !== requestedId) return
+    timeline.replaceChildren()
+    for (const record of records) {
+      const rendered = historyRecord(record)
+      if (rendered) timeline.append(rendered)
+    }
+    if (!timeline.childElementCount) timeline.append(emptyState("Ainda não há histórico."))
+    timeline.scrollTop = timeline.scrollHeight
+  } catch {
+    if (state.selectedEventId === requestedId) {
+      timeline.replaceChildren(emptyState("Não foi possível carregar o histórico."))
+    }
+  }
 }
 
 function renderInbox() {
   const list = $("#inbox-list")
   list.replaceChildren()
+  updateInboxCounts()
   const needle = state.search.toLocaleLowerCase("pt-BR")
-  const filtered = state.inbox.filter((item) => {
-    const event = item.event
-    const matchesSearch = [event.text, event.contactName, event.accountLabel]
-      .join(" ")
-      .toLocaleLowerCase("pt-BR")
-      .includes(needle)
-    if (!matchesSearch) return false
-    if (state.filter === "all") return true
-    if (state.filter === "review") return item.decision?.outcome === "human_review" && !item.resolution
-    if (state.filter === "sales") return item.analysis?.intent === "sales"
-    if (state.filter === "comment") return event.kind === "comment"
-    return event.channel === state.filter
-  })
+  const filtered = sortInbox(inboxItems(state.filter, needle))
+  const total = inboxItems("all").length
+  $("#inbox-result-status").textContent = `${filtered.length} de ${total}`
   if (!filtered.length) {
-    list.append(emptyState("Nada por aqui com esse filtro."))
+    state.selectedEventId = null
+    const empty = emptyState(
+      state.filter === "priority"
+        ? "Fila prioritária limpa. As outras mensagens continuam em Tudo."
+        : "Nada por aqui com esse filtro.",
+    )
+    if (state.filter === "priority") {
+      const showAll = element("button", {
+        className: "secondary-button",
+        text: "Mostrar todas",
+        attributes: { type: "button" },
+      })
+      showAll.addEventListener("click", () => setInboxFilter("all"))
+      empty.append(showAll)
+    }
+    list.append(empty)
+    renderConversationDetail(null)
     return
   }
-  for (const item of filtered) list.append(messageCard(item))
+  if (!filtered.some((item) => item.event.id === state.selectedEventId)) {
+    state.selectedEventId = filtered[0].event.id
+  }
+  for (const item of filtered) list.append(conversationItem(item))
+  renderConversationDetail(
+    filtered.find((item) => item.event.id === state.selectedEventId),
+  )
 }
 
 function closeContactHistory() {
   $("#history-drawer").hidden = true
   $("#history-scrim").hidden = true
   document.body.classList.remove("drawer-open")
+  state.historyReturnFocus?.focus()
+  state.historyReturnFocus = null
 }
 
 function historyRecord(record) {
@@ -295,6 +565,7 @@ function historyRecord(record) {
 }
 
 async function openContactHistory(event) {
+  state.historyReturnFocus = document.activeElement
   $("#history-title").textContent = contactName(event)
   $("#history-subtitle").textContent = `${event.accountLabel} · ${channelLabel(event)}`
   const timeline = $("#history-timeline")
@@ -302,6 +573,7 @@ async function openContactHistory(event) {
   $("#history-drawer").hidden = false
   $("#history-scrim").hidden = false
   document.body.classList.add("drawer-open")
+  $("#history-close").focus()
   try {
     const records = await api(`/v1/inbox/${encodeURIComponent(event.id)}/history`)
     timeline.replaceChildren()
@@ -415,21 +687,54 @@ function targetOptions(event) {
   ]
 }
 
-function reviewCard(item) {
+function reviewReasonText(reason) {
+  return (
+    {
+      sensitive_content: "Tema sensível: leia o contexto antes de responder.",
+      human_requested: "A pessoa pediu atendimento humano.",
+      recent_automation: "A automação foi interrompida para não repetir a mesma resposta.",
+      no_matching_automation: "Ainda não existe uma resposta automática confiável.",
+    }[reason] ?? "Esta mensagem precisa de uma decisão humana."
+  )
+}
+
+function createReviewComposer(item, { compact = false } = {}) {
   const event = item.event
   const name = contactName(event)
+  const draft = state.reviewDrafts[event.id] ?? {
+    text: "",
+    target: targetOptions(event)[0]?.[0] ?? "direct_message",
+  }
+  state.reviewDrafts[event.id] = draft
   const textarea = element("textarea", {
     attributes: {
       placeholder: "Escreva uma resposta com contexto e no tom certo…",
       "aria-label": `Resposta para ${name}`,
     },
   })
+  textarea.value = draft.text
+  textarea.addEventListener("input", () => {
+    draft.text = textarea.value
+  })
   const select = element("select", { attributes: { "aria-label": "Destino da resposta" } })
   for (const [value, label] of targetOptions(event)) {
-    select.append(element("option", { text: label, attributes: { value } }))
+    const option = element("option", { text: label, attributes: { value } })
+    option.selected = value === draft.target
+    select.append(option)
   }
-  const approve = element("button", { className: "primary-button", text: "Aprovar e responder" })
-  const reject = element("button", { className: "danger-button", text: "Encerrar" })
+  select.addEventListener("change", () => {
+    draft.target = select.value
+  })
+  const approve = element("button", {
+    className: "primary-button",
+    text: "Enviar resposta",
+    attributes: { type: "button" },
+  })
+  const reject = element("button", {
+    className: "danger-button",
+    text: "Encerrar sem responder",
+    attributes: { type: "button" },
+  })
   approve.addEventListener("click", async () => {
     const text = textarea.value.trim()
     if (!text) {
@@ -442,7 +747,8 @@ function reviewCard(item) {
         method: "POST",
         body: JSON.stringify({ text, target: select.value }),
       })
-      showToast("Resposta aprovada e registrada.")
+      delete state.reviewDrafts[event.id]
+      showToast("Resposta enviada e registrada.")
       await refresh()
     } catch (error) {
       showToast(error.message === "unauthorized" ? "Chave inválida." : "Não foi possível responder.")
@@ -451,12 +757,14 @@ function reviewCard(item) {
     }
   })
   reject.addEventListener("click", async () => {
+    if (!window.confirm("Encerrar esta mensagem sem enviar uma resposta?")) return
     reject.disabled = true
     try {
       await api(`/v1/reviews/${encodeURIComponent(event.id)}/reject`, {
         method: "POST",
         body: JSON.stringify({ reason: "closed_by_operator" }),
       })
+      delete state.reviewDrafts[event.id]
       showToast("Mensagem encerrada sem resposta.")
       await refresh()
     } catch {
@@ -465,6 +773,29 @@ function reviewCard(item) {
       reject.disabled = false
     }
   })
+  return element(
+    "div",
+    {
+      className: `review-composer ${compact ? "is-compact" : ""}`,
+      attributes: { "data-review-composer": event.id },
+    },
+    [
+      element("div", { className: "composer-head" }, [
+        element("div", {}, [
+          element("strong", { text: compact ? "Responder sem sair da fila" : "Sua resposta" }),
+          element("p", { text: reviewReasonText(item.decision.reason) }),
+        ]),
+        compact ? null : historyButton(event),
+      ]),
+      textarea,
+      element("div", { className: "review-actions" }, [select, reject, approve]),
+    ],
+  )
+}
+
+function reviewCard(item) {
+  const event = item.event
+  const name = contactName(event)
   return element("article", { className: "review-card" }, [
     element("div", { className: "review-head" }, [
       element("div", { className: "identity" }, [
@@ -489,8 +820,7 @@ function reviewCard(item) {
       ]),
     ]),
     element("p", { className: "message-text", text: event.text || "[sem texto]" }),
-    textarea,
-    element("div", { className: "review-actions" }, [select, reject, approve]),
+    createReviewComposer(item),
   ])
 }
 
@@ -807,14 +1137,14 @@ function renderConnections() {
 function switchView(view) {
   state.currentView = view
   const labels = {
-    inbox: ["VISÃO GERAL", "Caixa de entrada"],
+    inbox: ["ATENDIMENTO", "Mensagens"],
     backlog: ["CATÁLOGO", "Backlog e leads"],
     reviews: ["DECISÃO HUMANA", "Precisa de você"],
     automations: ["CONFIGURAÇÃO", "Respostas automáticas"],
     setup: ["CONFIGURAÇÃO", "Instalação e acessos"],
   }
   for (const name of Object.keys(labels)) $(`#${name}-view`).hidden = name !== view
-  $("#summary-strip").hidden = ["automations", "setup"].includes(view)
+  $("#summary-strip").hidden = ["inbox", "automations", "setup"].includes(view)
   $("#view-kicker").textContent = labels[view][0]
   $("#view-title").textContent = labels[view][1]
   $$(".nav-item").forEach((button) => button.classList.toggle("is-active", button.dataset.view === view))
@@ -897,11 +1227,7 @@ $("#inbox-search").addEventListener("input", (event) => {
 $("#inbox-filters").addEventListener("click", (event) => {
   const button = event.target.closest("[data-filter]")
   if (!button) return
-  state.filter = button.dataset.filter
-  $$("#inbox-filters .filter-button").forEach((candidate) =>
-    candidate.classList.toggle("is-active", candidate === button),
-  )
-  renderInbox()
+  setInboxFilter(button.dataset.filter)
 })
 
 $("#backlog-filters").addEventListener("click", (event) => {
