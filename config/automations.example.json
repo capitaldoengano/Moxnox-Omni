@@ -1,18 +1,97 @@
 {
   "automations": [
     {
-      "id": "information-request",
+      "id": "capital-desejo-que-pensa-sales",
       "enabled": true,
-      "channels": ["instagram", "messenger", "webchat", "whatsapp"],
+      "accounts": ["capital-do-engano"],
+      "channels": ["instagram"],
       "kinds": ["comment", "message"],
       "match": {
         "mode": "containsAny",
-        "terms": ["informação", "informacoes", "quero saber", "como funciona"]
+        "terms": [
+          "desejo que pensa",
+          "lab",
+          "curso",
+          "quero participar",
+          "quero entrar",
+          "inscrição",
+          "inscrever",
+          "quanto custa",
+          "qual o valor",
+          "preço",
+          "tem vaga",
+          "vagas",
+          "como funciona",
+          "mais informações",
+          "mais informacoes"
+        ]
       },
       "action": {
-        "publicReply": "Te mandei as informações no privado.",
-        "privateReply": "Oi! Recebi seu comentário. Me conta qual informação você procura para eu te encaminhar certinho.",
-        "messageReply": "Oi! Me conta qual informação você procura para eu te encaminhar certinho."
+        "publicReply": "Te chamei no privado pra te passar certinho.",
+        "privateReply": "Oi! O Desejo que Pensa é um Lab com 4 encontros online de 1h. O ciclo completo custa R$ 60. Neste link você encontra os detalhes, a próxima turma e a inscrição: https://capitaldoengano.github.io/desejoquepensa/ Se quiser, me conta por aqui o que te chamou atenção.",
+        "messageReply": "Oi! O Desejo que Pensa é um Lab com 4 encontros online de 1h. O ciclo completo custa R$ 60. Neste link você encontra os detalhes, a próxima turma e a inscrição: https://capitaldoengano.github.io/desejoquepensa/ Se quiser, me conta por aqui o que te chamou atenção."
+      }
+    },
+    {
+      "id": "gu-desejo-que-pensa-sales",
+      "enabled": true,
+      "accounts": ["gu"],
+      "channels": ["instagram"],
+      "kinds": ["comment", "message"],
+      "match": {
+        "mode": "containsAny",
+        "terms": [
+          "desejo que pensa",
+          "lab",
+          "curso",
+          "quero participar",
+          "quero entrar",
+          "inscrição",
+          "inscrever",
+          "quanto custa",
+          "qual o valor",
+          "preço",
+          "tem vaga",
+          "vagas",
+          "como funciona",
+          "mais informações",
+          "mais informacoes"
+        ]
+      },
+      "action": {
+        "publicReply": "Te mandei no privado.",
+        "privateReply": "Oi! Vi que você se interessou pelo Desejo que Pensa. São 4 encontros online de 1h, e o ciclo completo custa R$ 60. Aqui você encontra os detalhes, a próxima turma e a inscrição: https://capitaldoengano.github.io/desejoquepensa/ Se quiser, me conta o que te trouxe até o projeto.",
+        "messageReply": "Oi! Vi que você se interessou pelo Desejo que Pensa. São 4 encontros online de 1h, e o ciclo completo custa R$ 60. Aqui você encontra os detalhes, a próxima turma e a inscrição: https://capitaldoengano.github.io/desejoquepensa/ Se quiser, me conta o que te trouxe até o projeto."
+      }
+    },
+    {
+      "id": "whatsapp-desejo-que-pensa-sales",
+      "enabled": true,
+      "accounts": ["whatsapp"],
+      "channels": ["whatsapp"],
+      "kinds": ["message"],
+      "match": {
+        "mode": "containsAny",
+        "terms": [
+          "desejo que pensa",
+          "lab",
+          "curso",
+          "quero participar",
+          "quero entrar",
+          "inscrição",
+          "inscrever",
+          "quanto custa",
+          "qual o valor",
+          "preço",
+          "tem vaga",
+          "vagas",
+          "como funciona",
+          "mais informações",
+          "mais informacoes"
+        ]
+      },
+      "action": {
+        "messageReply": "Oi! O Desejo que Pensa é um Lab com 4 encontros online de 1h. O ciclo completo custa R$ 60. Neste link você encontra os detalhes, a próxima turma e a inscrição: https://capitaldoengano.github.io/desejoquepensa/ Se quiser, me conta o que você gostaria de saber."
       }
     }
   ]

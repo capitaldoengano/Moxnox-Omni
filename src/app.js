@@ -32,6 +32,21 @@ const maskedId = (value) => (value ? `••••${value.slice(-4)}` : null)
 const isConfigured = (value) =>
   Boolean(value) && !/^(?:replace-|change-me|changeme)/i.test(value)
 
+const accountKey = (config, event) => {
+  if (event.channel === "instagram") {
+    return (
+      config.instagramAccounts?.find((account) => account.accountId === event.accountId)
+        ?.key ?? "unknown"
+    )
+  }
+  if (event.channel === "whatsapp") {
+    return event.accountId === config.whatsappPhoneNumberId ? "whatsapp" : "unknown"
+  }
+  if (event.channel === "messenger") return "messenger"
+  if (event.channel === "webchat") return "webchat"
+  return "unknown"
+}
+
 const accountLabel = (config, event) => {
   if (event.channel === "instagram") {
     return (
@@ -128,7 +143,10 @@ export function createApp({ config, store, queue, pipeline }) {
         ) {
           return sendJson(response, 401, { error: "invalid_signature" })
         }
-        const events = normalizeMetaPayload(parseJson(rawBody))
+        const events = normalizeMetaPayload(parseJson(rawBody)).map((event) => ({
+          ...event,
+          accountKey: accountKey(config, event),
+        }))
         let accepted = 0
         for (const event of events) {
           if (await store.recordInbound(event)) {
@@ -154,6 +172,7 @@ export function createApp({ config, store, queue, pipeline }) {
           channel: "webchat",
           kind: "message",
           accountId: "webchat",
+          accountKey: "webchat",
           contactId: String(body.contactId ?? body.conversationId),
           contactName: String(body.contactName ?? ""),
           conversationId: String(body.conversationId),

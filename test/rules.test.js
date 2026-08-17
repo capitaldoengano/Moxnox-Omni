@@ -42,3 +42,36 @@ test("does not invent an answer when no rule matches", () => {
   assert.equal(decision.reason, "no_matching_automation")
 })
 
+test("keeps account-specific rules inside the intended profile", () => {
+  const accountRules = [
+    {
+      id: "capital-sales",
+      enabled: true,
+      accounts: ["capital-do-engano"],
+      channels: ["instagram"],
+      kinds: ["message"],
+      match: { mode: "containsAny", terms: ["valor"] },
+      action: { messageReply: "Resposta da Capital" },
+    },
+  ]
+  const capital = decideEvent(
+    {
+      accountKey: "capital-do-engano",
+      channel: "instagram",
+      kind: "message",
+      text: "Qual o valor?",
+    },
+    accountRules,
+  )
+  const gu = decideEvent(
+    {
+      accountKey: "gu",
+      channel: "instagram",
+      kind: "message",
+      text: "Qual o valor?",
+    },
+    accountRules,
+  )
+  assert.equal(capital.ruleId, "capital-sales")
+  assert.equal(gu.outcome, "human_review")
+})

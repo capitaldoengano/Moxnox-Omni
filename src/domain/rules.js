@@ -26,6 +26,13 @@ const includesAny = (text, terms) => {
 
 function matchesRule(rule, event) {
   if (!rule?.enabled) return false
+  if (
+    Array.isArray(rule.accounts) &&
+    rule.accounts.length > 0 &&
+    !rule.accounts.includes(event.accountKey)
+  ) {
+    return false
+  }
   if (!rule.channels?.includes(event.channel)) return false
   if (!rule.kinds?.includes(event.kind)) return false
   const terms = Array.isArray(rule.match?.terms) ? rule.match.terms : []
@@ -53,4 +60,3 @@ export function decideEvent(event, rules, reviewTerms = DEFAULT_REVIEW_TERMS) {
     action: matched.action ?? {},
   }
 }
-

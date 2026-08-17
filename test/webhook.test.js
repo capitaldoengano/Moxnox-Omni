@@ -46,6 +46,13 @@ test("verifies, ingests and deduplicates Meta webhooks", async (t) => {
       metaAppSecret: secret,
       webchatSiteToken: "site-token",
       adminApiKey: "admin-key",
+      instagramAccounts: [
+        {
+          key: "capital-do-engano",
+          label: "Capital do Engano",
+          accountId: "account-1",
+        },
+      ],
     },
     store,
     queue,
@@ -94,6 +101,9 @@ test("verifies, ingests and deduplicates Meta webhooks", async (t) => {
   assert.deepEqual(await first.json(), { accepted: 1, ignored: 0 })
   await queue.drain()
   assert.equal(sent.length, 2)
+  assert.equal(sent[0].event.accountKey, "capital-do-engano")
+  assert.equal(sent[0].outbound.target, "private_comment_reply")
+  assert.equal(sent[1].outbound.target, "public_comment")
 
   const duplicate = await sendWebhook()
   assert.deepEqual(await duplicate.json(), { accepted: 0, ignored: 1 })

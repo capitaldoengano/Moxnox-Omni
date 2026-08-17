@@ -3,11 +3,11 @@ import { decideEvent } from "./rules.js"
 
 function buildOutbound(event, action) {
   const messages = []
-  if (event.kind === "comment" && action.publicReply) {
-    messages.push({ target: "public_comment", text: action.publicReply })
-  }
   if (event.kind === "comment" && action.privateReply) {
     messages.push({ target: "private_comment_reply", text: action.privateReply })
+  }
+  if (event.kind === "comment" && action.publicReply) {
+    messages.push({ target: "public_comment", text: action.publicReply })
   }
   if (event.kind === "message" && action.messageReply) {
     messages.push({ target: "direct_message", text: action.messageReply })
@@ -57,4 +57,3 @@ export function createPipeline({ store, rules, dispatcher }) {
     },
   }
 }
-

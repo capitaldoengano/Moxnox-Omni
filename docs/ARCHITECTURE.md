@@ -25,6 +25,10 @@ flowchart TD
 - `src/lib`: small security and HTTP primitives.
 - `src/app.js`: transport routes and authentication.
 
+Inbound events receive an internal `accountKey` after provider authentication.
+Rules may target that stable key instead of depending on provider IDs, keeping
+Capital do Engano, `@ogustavosouzapauli` and WhatsApp copy separate.
+
 ## Scale path
 
 The append-only JSONL store and in-process queue are intentional v0.1 adapters.

@@ -9,7 +9,7 @@ deduplicates events, evaluates deterministic rules and records proposed
 responses without contacting a provider. Live delivery must be enabled
 explicitly after credentials and Meta permissions are validated.
 
-## What works in v0.2
+## What works in v0.3
 
 - Meta webhook verification and HMAC-SHA256 signature validation.
 - Instagram comments and DMs, Facebook Page comments and DMs, and WhatsApp text.
@@ -22,6 +22,8 @@ explicitly after credentials and Meta permissions are validated.
 - Internal responsive cockpit at `/cockpit`.
 - Unified inbox, message analysis, human review and integration status.
 - Separate Instagram credentials for Capital do Engano and `@ogustavosouzapauli`.
+- Account-specific automations for Capital do Engano, the Gu profile and WhatsApp.
+- Initial Desejo que Pensa sales replies with human review for unrelated content.
 - Dependency-free Node.js runtime, tests, Docker image and CI.
 
 ## Quick start
@@ -85,5 +87,6 @@ not legal advice.
 - [Commercial model](docs/COMMERCIAL_MODEL.md)
 - [Data protection baseline](docs/DATA_PROTECTION.md)
 - [Meta setup](docs/META_SETUP.md)
+- [Automation rules](docs/AUTOMATIONS.md)
 - [Security policy](SECURITY.md)
 - [Contributing](CONTRIBUTING.md)
