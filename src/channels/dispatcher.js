@@ -78,9 +78,21 @@ function whatsappRequest(config, event, outbound) {
 
 export function createDispatcher(config) {
   return {
+    modeFor(event) {
+      if (config.deliveryMode === "dry-run") return "dry-run"
+      return config.liveAccounts?.includes(event.accountKey) ? "live" : "protected"
+    },
+
     async send(event, outbound) {
       if (config.deliveryMode === "dry-run") {
-        return { status: "planned", providerMessageId: null }
+        return { status: "planned", providerMessageId: null, reason: "dry_run" }
+      }
+      if (!config.liveAccounts?.includes(event.accountKey)) {
+        return {
+          status: "planned",
+          providerMessageId: null,
+          reason: "account_not_live",
+        }
       }
       if (event.channel === "webchat") {
         return { status: "delivered", providerMessageId: `local:${outbound.id}` }

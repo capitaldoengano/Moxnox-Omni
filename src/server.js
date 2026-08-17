@@ -23,8 +23,11 @@ export async function createRuntime(config = loadConfig()) {
     (event) => pipeline.process(event),
     (error, event) => console.error("job_failed", { error: error.message, eventId: event.id }),
   )
+  const recovered = store.listUnprocessedEvents()
+  for (const event of recovered) queue.enqueue(event)
+  await queue.drain()
   const app = createApp({ config, store, queue, pipeline, automationStore })
-  return { app, store, queue, pipeline, automationStore }
+  return { app, store, queue, pipeline, automationStore, recovered: recovered.length }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -33,5 +36,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   app.listen(config.port, config.host, () => {
     console.log(`moxnox-omni listening on http://${config.host}:${config.port}`)
     console.log(`delivery mode: ${config.deliveryMode}`)
+    if (config.deliveryMode === "live") {
+      console.log(`live accounts: ${config.liveAccounts.join(", ")}`)
+    }
   })
 }

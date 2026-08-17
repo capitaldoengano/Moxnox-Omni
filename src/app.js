@@ -8,6 +8,7 @@ import {
   effectiveClassification,
 } from "./domain/classification.js"
 import { normalizeMetaPayload } from "./domain/normalize-meta.js"
+import { buildOperationalReadiness } from "./domain/operational-readiness.js"
 import { decideEvent } from "./domain/rules.js"
 import { buildSetupStatus } from "./domain/setup-status.js"
 import { readRawBody, sendAsset, sendJson, sendText } from "./lib/http.js"
@@ -77,6 +78,7 @@ const enrichItem = (config, item) => {
 
 const integrations = (config) => ({
   deliveryMode: config.deliveryMode,
+  liveAccounts: config.liveAccounts ?? [],
   webhook: {
     configured: isConfigured(config.metaVerifyToken) && isConfigured(config.metaAppSecret),
     url: config.publicBaseUrl ? `${config.publicBaseUrl}/webhooks/meta` : null,
@@ -88,6 +90,9 @@ const integrations = (config) => ({
       label: account.label,
       channel: "instagram",
       configured: isConfigured(account.accountId) && isConfigured(account.accessToken),
+      live:
+        config.deliveryMode === "live" &&
+        (config.liveAccounts ?? []).includes(account.key),
       accountId: maskedId(account.accountId),
     })),
     {
@@ -97,6 +102,9 @@ const integrations = (config) => ({
       configured:
         isConfigured(config.whatsappPhoneNumberId) &&
         isConfigured(config.whatsappAccessToken),
+      live:
+        config.deliveryMode === "live" &&
+        (config.liveAccounts ?? []).includes("whatsapp"),
       accountId: maskedId(config.whatsappPhoneNumberId),
     },
   ],
@@ -307,6 +315,12 @@ export function createApp({ config, store, queue, pipeline, automationStore = nu
 
       if (request.method === "GET" && url.pathname === "/v1/setup") {
         return sendJson(response, 200, { data: buildSetupStatus(config) })
+      }
+
+      if (request.method === "GET" && url.pathname === "/v1/readiness") {
+        return sendJson(response, 200, {
+          data: buildOperationalReadiness(config, store),
+        })
       }
 
       const approveMatch = url.pathname.match(/^\/v1\/reviews\/([^/]+)\/approve$/)

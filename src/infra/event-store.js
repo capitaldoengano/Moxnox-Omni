@@ -10,6 +10,7 @@ const contactKey = (event) =>
 export class EventStore {
   #filePath
   #records = []
+  #externalIds = new Set()
   #writeTail = Promise.resolve()
 
   constructor(dataDir) {
@@ -24,33 +25,55 @@ export class EventStore {
         .split("\n")
         .filter(Boolean)
         .map((line) => JSON.parse(line))
+      this.#externalIds = new Set(
+        this.#records
+          .filter((record) => record.type === "inbound")
+          .map((record) => record.event.externalId),
+      )
     } catch (error) {
       if (error.code !== "ENOENT") throw error
     }
   }
 
   async #append(record) {
-    this.#records.push(record)
-    this.#writeTail = this.#writeTail.then(() =>
+    const write = this.#writeTail.then(() =>
       appendFile(this.#filePath, `${JSON.stringify(record)}\n`, {
         encoding: "utf8",
         mode: 0o600,
       }),
     )
-    await this.#writeTail
+    this.#writeTail = write.catch(() => {})
+    await write
+    this.#records.push(record)
   }
 
   hasExternalId(externalId) {
-    return this.#records.some(
-      (record) =>
-        record.type === "inbound" && record.event.externalId === externalId,
-    )
+    return this.#externalIds.has(externalId)
   }
 
   async recordInbound(event) {
     if (this.hasExternalId(event.externalId)) return false
-    await this.#append({ type: "inbound", at: new Date().toISOString(), event })
+    this.#externalIds.add(event.externalId)
+    try {
+      await this.#append({ type: "inbound", at: new Date().toISOString(), event })
+    } catch (error) {
+      this.#externalIds.delete(event.externalId)
+      throw error
+    }
     return true
+  }
+
+  listUnprocessedEvents() {
+    const processed = new Set(
+      this.#records
+        .filter((record) => record.type === "decision")
+        .map((record) => record.eventId),
+    )
+    return this.#records
+      .filter(
+        (record) => record.type === "inbound" && !processed.has(record.event.id),
+      )
+      .map((record) => record.event)
   }
 
   async recordDecision(eventId, decision) {
