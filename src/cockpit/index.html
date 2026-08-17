@@ -45,20 +45,20 @@
         <div>
           <p class="eyebrow">MOXNOX OMNI</p>
           <h1 class="brand">cockpit<span>.</span></h1>
-          <p class="internal-badge">interno · v0.6</p>
+          <p class="internal-badge">interno · v0.7</p>
         </div>
 
         <nav class="main-nav" aria-label="Seções">
           <button class="nav-item is-active" data-view="inbox">
-            <span>Caixa de entrada</span>
+            <span>Mensagens</span>
             <span id="nav-inbox-count" class="nav-count">0</span>
           </button>
           <button class="nav-item" data-view="backlog">
-            <span>Backlog</span>
+            <span>Leads e backlog</span>
             <span id="nav-backlog-count" class="nav-count">0</span>
           </button>
           <button class="nav-item" data-view="reviews">
-            <span>Precisa de você</span>
+            <span>Responder agora</span>
             <span id="nav-review-count" class="nav-count accent">0</span>
           </button>
           <button class="nav-item" data-view="automations">
@@ -78,8 +78,8 @@
       <main class="workspace">
         <header class="topbar">
           <div>
-            <p id="view-kicker" class="eyebrow">VISÃO GERAL</p>
-            <h2 id="view-title">Caixa de entrada</h2>
+            <p id="view-kicker" class="eyebrow">FILA DE TRABALHO</p>
+            <h2 id="view-title">Mensagens</h2>
           </div>
           <div class="topbar-actions">
             <span id="sync-status" class="sync-status" aria-live="polite">Atualizando…</span>
@@ -87,7 +87,7 @@
           </div>
         </header>
 
-        <section id="summary-strip" class="summary-grid" aria-label="Resumo">
+        <section id="summary-strip" class="summary-grid" aria-label="Resumo" hidden>
           <article class="metric-card">
             <span>No backlog</span>
             <strong id="metric-backlog">0</strong>
@@ -129,40 +129,43 @@
           <div id="backlog-list" class="backlog-list"></div>
         </section>
 
-        <section id="inbox-view" class="view-panel">
-          <div class="toolbar">
-            <label class="search-field">
-              <span class="sr-only">Buscar mensagens</span>
-              <input id="inbox-search" type="search" placeholder="Buscar pessoa ou mensagem" />
-            </label>
-            <div id="inbox-filters" class="filter-group" aria-label="Filtros">
-              <button class="filter-button is-active" data-filter="all">Tudo</button>
-              <button class="filter-button" data-filter="instagram">Instagram</button>
-              <button class="filter-button" data-filter="whatsapp">WhatsApp</button>
-              <button class="filter-button" data-filter="comment">Comentários</button>
-              <button class="filter-button" data-filter="sales">Possível venda</button>
-              <button class="filter-button" data-filter="review">Revisão</button>
+        <section id="inbox-view" class="view-panel conversation-workspace">
+          <aside class="conversation-column" aria-label="Lista de conversas">
+            <div class="conversation-column-head">
+              <div>
+                <p class="eyebrow">ATENDIMENTOS</p>
+                <h3>Conversas</h3>
+              </div>
+              <p id="inbox-result-status" class="result-status" aria-live="polite"></p>
             </div>
-          </div>
-          <div id="operational-signals" class="operational-signals" aria-label="Indicadores operacionais">
-            <article>
-              <span>Automação</span>
-              <strong id="signal-automation">0%</strong>
-            </article>
-            <article>
-              <span>Primeira resposta</span>
-              <strong id="signal-response-time">—</strong>
-            </article>
-            <article>
-              <span>Revisões resolvidas</span>
-              <strong id="signal-resolution">0%</strong>
-            </article>
-            <article>
-              <span>Pendências +24h</span>
-              <strong id="signal-overdue">0</strong>
-            </article>
-          </div>
-          <div id="inbox-list" class="message-list"></div>
+            <div id="inbox-filters" class="conversation-tabs" aria-label="Filtrar conversas">
+              <button class="conversation-tab is-active" data-filter="priority" aria-pressed="true">Prioridade <span data-filter-count="priority">0</span></button>
+              <button class="conversation-tab" data-filter="review" aria-pressed="false">Responder <span data-filter-count="review">0</span></button>
+              <button class="conversation-tab" data-filter="sales" aria-pressed="false">Leads <span data-filter-count="sales">0</span></button>
+              <button class="conversation-tab" data-filter="all" aria-pressed="false">Todas <span data-filter-count="all">0</span></button>
+            </div>
+            <label class="conversation-search">
+              <span class="sr-only">Buscar conversas</span>
+              <input id="inbox-search" type="search" placeholder="Buscar conversa" />
+            </label>
+            <div id="inbox-list" class="conversation-list"></div>
+            <details class="signals-disclosure">
+              <summary>Desempenho</summary>
+              <div id="operational-signals" class="operational-signals" aria-label="Indicadores operacionais">
+                <article><span>Automação</span><strong id="signal-automation">0%</strong></article>
+                <article><span>1ª resposta</span><strong id="signal-response-time">—</strong></article>
+                <article><span>Resolvidas</span><strong id="signal-resolution">0%</strong></article>
+                <article><span>+24h</span><strong id="signal-overdue">0</strong></article>
+              </div>
+            </details>
+          </aside>
+          <section id="conversation-detail" class="conversation-detail" aria-live="polite">
+            <div class="conversation-empty">
+              <span class="conversation-empty-mark">M.</span>
+              <h3>Selecione uma conversa</h3>
+              <p>O histórico e as ações aparecem aqui.</p>
+            </div>
+          </section>
         </section>
 
         <section id="reviews-view" class="view-panel" hidden>
@@ -368,7 +371,7 @@
     </div>
 
     <div id="history-scrim" class="history-scrim" hidden></div>
-    <aside id="history-drawer" class="history-drawer" aria-labelledby="history-title" hidden>
+    <aside id="history-drawer" class="history-drawer" role="dialog" aria-modal="true" aria-labelledby="history-title" tabindex="-1" hidden>
       <header class="history-head">
         <div>
           <p class="eyebrow">CONTEXTO DO CONTATO</p>

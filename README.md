@@ -9,7 +9,7 @@ deduplicates events, evaluates deterministic rules and records proposed
 responses without contacting a provider. Live delivery must be enabled
 explicitly after credentials and Meta permissions are validated.
 
-## What works in v0.6
+## What works in v0.7
 
 - Meta webhook verification and HMAC-SHA256 signature validation.
 - Instagram comments and DMs, Facebook Page comments and DMs, and WhatsApp text.
@@ -34,6 +34,8 @@ explicitly after credentials and Meta permissions are validated.
 - Per-contact automation cooldown that prevents repeating the same sales pitch.
 - Contact history drawer for operators before replying or classifying.
 - Operational indicators for automation, response time, review resolution and aging.
+- Three-pane operator flow with a compact conversation queue and selected contact context.
+- Inline human replies, lead confirmation and classification access without hunting across views.
 - Dependency-free Node.js runtime, tests, Docker image and CI.
 
 ## Quick start
