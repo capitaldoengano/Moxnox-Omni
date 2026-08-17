@@ -39,6 +39,12 @@ export function analyzeMessage(event, decision = null) {
   if (decision?.reason === "sensitive_content") {
     return { intent: "sensitive", label: "Tema sensível", priority: "high" }
   }
+  if (decision?.reason === "human_requested") {
+    return { intent: "handoff", label: "Pediu atendimento", priority: "high" }
+  }
+  if (decision?.reason === "recent_automation") {
+    return { intent: "handoff", label: "Evitar repetição", priority: "high" }
+  }
   if (includesAny(event.text, SALES_TERMS)) {
     return { intent: "sales", label: "Possível venda", priority: "high" }
   }

@@ -9,7 +9,7 @@ deduplicates events, evaluates deterministic rules and records proposed
 responses without contacting a provider. Live delivery must be enabled
 explicitly after credentials and Meta permissions are validated.
 
-## What works in v0.5
+## What works in v0.6
 
 - Meta webhook verification and HMAC-SHA256 signature validation.
 - Instagram comments and DMs, Facebook Page comments and DMs, and WhatsApp text.
@@ -30,6 +30,10 @@ explicitly after credentials and Meta permissions are validated.
 - Dedicated views and counters for unclassified messages and potential leads.
 - Safe first-run installer that creates local secrets without overwriting `.env`.
 - Browser installation checklist with progress, webhook URL and official Meta links.
+- Explicit human handoff when a person asks for human support.
+- Per-contact automation cooldown that prevents repeating the same sales pitch.
+- Contact history drawer for operators before replying or classifying.
+- Operational indicators for automation, response time, review resolution and aging.
 - Dependency-free Node.js runtime, tests, Docker image and CI.
 
 ## Quick start
@@ -71,12 +75,14 @@ Meta app.
 | `GET` | `/v1/inbox` | Recent inbound activity and decisions |
 | `GET` | `/v1/backlog` | Open catalog; supports `category` or `scope=all` |
 | `GET` | `/v1/summary` | Operational counters |
+| `GET` | `/v1/analytics` | Response, automation, resolution and aging indicators |
 | `GET` | `/v1/automations` | Current persistent automation rules |
 | `PUT` | `/v1/automations/:id` | Create or replace a validated rule |
 | `POST` | `/v1/automations/test` | Simulate matching without sending anything |
 | `GET` | `/v1/integrations` | Credential status without revealing secrets |
 | `GET` | `/v1/setup` | First-run checklist, access URLs and official guides |
 | `POST` | `/v1/inbox/:id/classification` | Append a backlog classification and note |
+| `GET` | `/v1/inbox/:id/history` | Audited history for the contact in the same account |
 | `POST` | `/v1/reviews/:id/approve` | Approve and deliver a reply |
 | `POST` | `/v1/reviews/:id/reject` | Close without replying |
 | `GET` | `/v1/conversations/:id` | Audited conversation records |
@@ -106,6 +112,7 @@ not legal advice.
 - [Data protection baseline](docs/DATA_PROTECTION.md)
 - [Meta setup](docs/META_SETUP.md)
 - [Installation and first access](docs/INSTALLATION.md)
+- [Omnichannel product strategy](docs/OMNICHANNEL_STRATEGY.md)
 - [Automation rules](docs/AUTOMATIONS.md)
 - [Security policy](SECURITY.md)
 - [Contributing](CONTRIBUTING.md)

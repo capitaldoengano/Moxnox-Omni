@@ -13,7 +13,12 @@ export async function createRuntime(config = loadConfig()) {
   const store = new EventStore(config.dataDir)
   await store.initialize()
   const dispatcher = createDispatcher(config)
-  const pipeline = createPipeline({ store, rules: () => automationStore.list(), dispatcher })
+  const pipeline = createPipeline({
+    store,
+    rules: () => automationStore.list(),
+    dispatcher,
+    automationCooldownMs: config.automationCooldownMinutes * 60 * 1_000,
+  })
   const queue = new JobQueue(
     (event) => pipeline.process(event),
     (error, event) => console.error("job_failed", { error: error.message, eventId: event.id }),

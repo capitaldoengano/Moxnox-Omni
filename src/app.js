@@ -237,6 +237,10 @@ export function createApp({ config, store, queue, pipeline, automationStore = nu
         return sendJson(response, 200, { data })
       }
 
+      if (request.method === "GET" && url.pathname === "/v1/analytics") {
+        return sendJson(response, 200, { data: store.getAnalytics() })
+      }
+
       if (request.method === "GET" && url.pathname === "/v1/backlog") {
         const category = url.searchParams.get("category")
         if (category && !CLASSIFICATION_CATEGORIES.includes(category)) {
@@ -345,6 +349,13 @@ export function createApp({ config, store, queue, pipeline, automationStore = nu
           .listInbox(null)
           .find((candidate) => candidate.event.id === eventId)
         return sendJson(response, 200, { data: enrichItem(config, item) })
+      }
+
+      const historyMatch = url.pathname.match(/^\/v1\/inbox\/([^/]+)\/history$/)
+      if (request.method === "GET" && historyMatch) {
+        const data = store.listContactHistory(decodeURIComponent(historyMatch[1]))
+        if (!data) return sendJson(response, 404, { error: "event_not_found" })
+        return sendJson(response, 200, { data })
       }
 
       const conversationMatch = url.pathname.match(/^\/v1\/conversations\/([^/]+)$/)

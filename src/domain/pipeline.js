@@ -15,7 +15,7 @@ function buildOutbound(event, action) {
   return messages.map((message) => ({ id: randomUUID(), ...message }))
 }
 
-export function createPipeline({ store, rules, dispatcher }) {
+export function createPipeline({ store, rules, dispatcher, automationCooldownMs = 0 }) {
   const deliver = async (event, outbound) => {
     try {
       const result = await dispatcher.send(event, outbound)
@@ -34,7 +34,17 @@ export function createPipeline({ store, rules, dispatcher }) {
   return {
     async process(event) {
       const activeRules = typeof rules === "function" ? rules() : rules
-      const decision = decideEvent(event, activeRules)
+      let decision = decideEvent(event, activeRules)
+      if (
+        decision.outcome === "automated" &&
+        store.hasRecentAutomation(event, decision.ruleId, automationCooldownMs)
+      ) {
+        decision = {
+          outcome: "human_review",
+          reason: "recent_automation",
+          ruleId: decision.ruleId,
+        }
+      }
       await store.recordDecision(event.id, decision)
       if (decision.outcome !== "automated") return decision
       for (const outbound of buildOutbound(event, decision.action)) {

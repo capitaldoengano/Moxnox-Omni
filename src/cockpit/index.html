@@ -45,7 +45,7 @@
         <div>
           <p class="eyebrow">MOXNOX OMNI</p>
           <h1 class="brand">cockpit<span>.</span></h1>
-          <p class="internal-badge">interno · v0.5</p>
+          <p class="internal-badge">interno · v0.6</p>
         </div>
 
         <nav class="main-nav" aria-label="Seções">
@@ -143,6 +143,24 @@
               <button class="filter-button" data-filter="sales">Possível venda</button>
               <button class="filter-button" data-filter="review">Revisão</button>
             </div>
+          </div>
+          <div id="operational-signals" class="operational-signals" aria-label="Indicadores operacionais">
+            <article>
+              <span>Automação</span>
+              <strong id="signal-automation">0%</strong>
+            </article>
+            <article>
+              <span>Primeira resposta</span>
+              <strong id="signal-response-time">—</strong>
+            </article>
+            <article>
+              <span>Revisões resolvidas</span>
+              <strong id="signal-resolution">0%</strong>
+            </article>
+            <article>
+              <span>Pendências +24h</span>
+              <strong id="signal-overdue">0</strong>
+            </article>
           </div>
           <div id="inbox-list" class="message-list"></div>
         </section>
@@ -348,6 +366,23 @@
         </section>
       </main>
     </div>
+
+    <div id="history-scrim" class="history-scrim" hidden></div>
+    <aside id="history-drawer" class="history-drawer" aria-labelledby="history-title" hidden>
+      <header class="history-head">
+        <div>
+          <p class="eyebrow">CONTEXTO DO CONTATO</p>
+          <h2 id="history-title">Histórico</h2>
+          <p id="history-subtitle"></p>
+        </div>
+        <button id="history-close" class="secondary-button" type="button" aria-label="Fechar histórico">Fechar</button>
+      </header>
+      <div id="history-timeline" class="history-timeline"></div>
+      <p class="history-boundary">
+        O histórico reúne este contato dentro da mesma conta conectada. Canais diferentes
+        só serão unidos quando houver identificação consentida.
+      </p>
+    </aside>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   </body>

@@ -48,6 +48,12 @@ Rules are evaluated in file order and the first match wins. Sensitive content
 is intercepted before automation matching. Empty, unrelated or unmatched
 content stays in human review.
 
+An explicit request such as “quero falar com uma pessoa” always bypasses rules.
+The runtime also prevents the same rule from sending another pitch to the same
+contact inside `AUTOMATION_COOLDOWN_MINUTES` (24 hours by default). The second
+event goes to human review with its contact history available in the cockpit.
+Set the value to `0` only when intentionally disabling this protection.
+
 ## Initial Desejo que Pensa policy
 
 The bundled rules answer only explicit commercial interest in Desejo que Pensa:

@@ -57,6 +57,12 @@ export function buildSetupStatus(config) {
           config.publicBaseUrl,
           "Domínio onde o Moxnox será publicado",
         ),
+        item(
+          "AUTOMATION_COOLDOWN_MINUTES",
+          "Intervalo contra resposta repetida",
+          String(config.automationCooldownMinutes ?? ""),
+          "Definido no .env; 1440 equivale a 24 horas",
+        ),
       ],
     },
     {

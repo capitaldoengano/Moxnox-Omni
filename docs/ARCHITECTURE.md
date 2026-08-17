@@ -12,7 +12,7 @@ flowchart TD
   C --> D[Rules and safety policy]
   D --> E{Decision}
   E -->|Automated| F[Provider dispatcher]
-  E -->|Sensitive or unmatched| G[Human review]
+  E -->|Sensitive, repeated or requested| G[Human review]
   G --> F
 ```
 
@@ -34,6 +34,16 @@ packaged automation file is used only as the first-start seed. Message
 classifications are appended to the JSONL audit trail. The latest manual value
 is shown as the effective catalog state, while automatic sales, support and
 sensitive suggestions remain reproducible from the original event.
+
+The hybrid boundary is explicit: sensitive content, unmatched messages, a
+request for a person or a repeated automation inside the configured cooldown
+goes to human review. The contact drawer derives history only from the same
+channel, account and provider contact ID. Cross-channel identities are not
+merged without a reliable, consented identifier.
+
+Operational analytics are derived from the append-only event trail. Failed
+deliveries do not count as responses and do not activate the repetition
+cooldown.
 
 ## Scale path
 

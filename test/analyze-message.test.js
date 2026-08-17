@@ -22,3 +22,13 @@ test("keeps sensitive decisions above commercial classification", () => {
 test("treats ordinary comments as engagement", () => {
   assert.equal(analyzeMessage({ kind: "comment", text: "Esse post me pegou" }).intent, "engagement")
 })
+
+test("prioritizes a requested human handoff", () => {
+  assert.deepEqual(
+    analyzeMessage(
+      { kind: "message", text: "Quero falar com alguém" },
+      { outcome: "human_review", reason: "human_requested" },
+    ),
+    { intent: "handoff", label: "Pediu atendimento", priority: "high" },
+  )
+})

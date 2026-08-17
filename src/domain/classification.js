@@ -32,6 +32,7 @@ export function inferClassification(analysis) {
       sales: "potential_lead",
       support: "support",
       sensitive: "sensitive",
+      handoff: "follow_up",
     }[analysis?.intent] ?? "unclassified"
   return { category, note: "", source: "automatic", classifiedAt: null }
 }

@@ -184,4 +184,19 @@ test("serves the cockpit and exposes authenticated operational data", async (t) 
   )
   assert.equal(approval.status, 200)
   assert.equal(store.listReviews().length, 0)
+
+  const analytics = await fetch(`${baseUrl}/v1/analytics`, { headers }).then(
+    (response) => response.json(),
+  )
+  assert.equal(analytics.data.reviewResolutionRate, 100)
+  assert.equal(analytics.data.responded, 1)
+
+  const history = await fetch(
+    `${baseUrl}/v1/inbox/${encodeURIComponent(inboundPayload.eventId)}/history`,
+    { headers },
+  ).then((response) => response.json())
+  assert.deepEqual(
+    history.data.map((record) => record.type),
+    ["inbound", "classification", "outbound", "review_resolution"],
+  )
 })
