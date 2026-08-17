@@ -75,3 +75,18 @@ test("keeps account-specific rules inside the intended profile", () => {
   assert.equal(capital.ruleId, "capital-sales")
   assert.equal(gu.outcome, "human_review")
 })
+
+test("always honors an explicit request for human support", () => {
+  const decision = decideEvent(
+    {
+      channel: "instagram",
+      kind: "comment",
+      text: "Quero falar com uma pessoa sobre o valor",
+    },
+    rules,
+  )
+  assert.deepEqual(decision, {
+    outcome: "human_review",
+    reason: "human_requested",
+  })
+})

@@ -13,6 +13,17 @@ const DEFAULT_REVIEW_TERMS = [
   "denuncia",
 ]
 
+const DEFAULT_HANDOFF_TERMS = [
+  "falar com uma pessoa",
+  "falar com alguém",
+  "falar com alguem",
+  "falar com humano",
+  "atendimento humano",
+  "quero um atendente",
+  "chama o gu",
+  "falar com o gu",
+]
+
 const normalize = (value) =>
   String(value ?? "")
     .normalize("NFD")
@@ -42,12 +53,20 @@ function matchesRule(rule, event) {
   return terms.length > 0 && includesAny(event.text, terms)
 }
 
-export function decideEvent(event, rules, reviewTerms = DEFAULT_REVIEW_TERMS) {
+export function decideEvent(
+  event,
+  rules,
+  reviewTerms = DEFAULT_REVIEW_TERMS,
+  handoffTerms = DEFAULT_HANDOFF_TERMS,
+) {
   if (!event.text?.trim()) {
     return { outcome: "human_review", reason: "non_text_or_empty" }
   }
   if (includesAny(event.text, reviewTerms)) {
     return { outcome: "human_review", reason: "sensitive_content" }
+  }
+  if (includesAny(event.text, handoffTerms)) {
+    return { outcome: "human_review", reason: "human_requested" }
   }
   const matched = rules.find((rule) => matchesRule(rule, event))
   if (!matched) {

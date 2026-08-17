@@ -6,6 +6,7 @@ test("builds an installation checklist without exposing configured values", () =
   const config = {
     deliveryMode: "dry-run",
     publicBaseUrl: "https://omni.example.test",
+    automationCooldownMinutes: 1440,
     adminApiKey: "admin-value-that-must-not-leak",
     webchatSiteToken: "webchat-value-that-must-not-leak",
     metaAppId: "meta-app-id-1234",

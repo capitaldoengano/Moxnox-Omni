@@ -14,6 +14,14 @@ const parsePort = (value) => {
   return parsed
 }
 
+const parseCooldownMinutes = (value) => {
+  const parsed = Number.parseInt(value ?? "1440", 10)
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 10_080) {
+    throw new Error("AUTOMATION_COOLDOWN_MINUTES must be between 0 and 10080")
+  }
+  return parsed
+}
+
 export function loadConfig(env = process.env) {
   const deliveryMode = clean(env.DELIVERY_MODE) || "dry-run"
   if (!["dry-run", "live"].includes(deliveryMode)) {
@@ -28,6 +36,9 @@ export function loadConfig(env = process.env) {
     dataDir: path.resolve(clean(env.DATA_DIR) || "./data"),
     automationsFile: path.resolve(
       clean(env.AUTOMATIONS_FILE) || "./config/automations.example.json",
+    ),
+    automationCooldownMinutes: parseCooldownMinutes(
+      env.AUTOMATION_COOLDOWN_MINUTES,
     ),
     publicBaseUrl: clean(env.PUBLIC_BASE_URL).replace(/\/$/, ""),
     adminApiKey: clean(env.ADMIN_API_KEY),

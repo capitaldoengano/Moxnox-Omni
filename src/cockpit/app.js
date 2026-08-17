@@ -7,6 +7,7 @@ const state = {
   summary: {},
   integrations: null,
   setup: null,
+  analytics: {},
   filter: "all",
   backlogFilter: "open",
   search: "",
@@ -122,8 +123,17 @@ function reasonLabel(item) {
   if (item.resolution?.outcome === "rejected") return ["Encerrada", ""]
   if (item.decision?.outcome === "automated") return ["Automação", "auto"]
   if (item.decision?.reason === "sensitive_content") return ["Atenção", "review"]
+  if (item.decision?.reason === "human_requested") return ["Pediu uma pessoa", "review"]
+  if (item.decision?.reason === "recent_automation") return ["Ver contexto", "review"]
   if (item.decision?.outcome === "human_review") return ["Revisar", "review"]
   return ["Processando", ""]
+}
+
+function formatDuration(seconds) {
+  if (seconds === null || seconds === undefined) return "—"
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3_600) return `${Math.round(seconds / 60)}min`
+  return `${Math.round(seconds / 3_600)}h`
 }
 
 function emptyState(message) {
@@ -138,6 +148,25 @@ function renderSummary() {
   $("#nav-inbox-count").textContent = state.summary.inbound ?? 0
   $("#nav-backlog-count").textContent = state.summary.backlog ?? 0
   $("#nav-review-count").textContent = state.summary.pendingReviews ?? 0
+}
+
+function renderAnalytics() {
+  $("#signal-automation").textContent = `${state.analytics.automationRate ?? 0}%`
+  $("#signal-response-time").textContent = formatDuration(
+    state.analytics.medianFirstResponseSeconds,
+  )
+  $("#signal-resolution").textContent = `${state.analytics.reviewResolutionRate ?? 0}%`
+  $("#signal-overdue").textContent = state.analytics.pendingOver24Hours ?? 0
+}
+
+function historyButton(event) {
+  const button = element("button", {
+    className: "history-button",
+    text: "Ver histórico",
+    attributes: { type: "button" },
+  })
+  button.addEventListener("click", () => openContactHistory(event))
+  return button
 }
 
 function messageCard(item) {
@@ -164,6 +193,7 @@ function messageCard(item) {
         text: item.analysis?.label ?? "Conversa",
       }),
       element("span", { className: `status-tag ${statusClass}`, text: status }),
+      historyButton(event),
     ]),
   ])
   const children = [meta, element("p", { className: "message-text", text: event.text || "[sem texto]" })]
@@ -201,6 +231,93 @@ function renderInbox() {
     return
   }
   for (const item of filtered) list.append(messageCard(item))
+}
+
+function closeContactHistory() {
+  $("#history-drawer").hidden = true
+  $("#history-scrim").hidden = true
+  document.body.classList.remove("drawer-open")
+}
+
+function historyRecord(record) {
+  if (record.type === "inbound") {
+    return element("article", { className: "history-record inbound" }, [
+      element("div", { className: "history-record-head" }, [
+        element("strong", { text: "Recebida" }),
+        element("span", { text: formatTime(record.at) }),
+      ]),
+      element("p", { text: record.event.text || "[sem texto]" }),
+      element("small", { text: channelLabel(record.event) }),
+    ])
+  }
+  if (record.type === "outbound") {
+    const status =
+      record.outbound.status === "planned"
+        ? "Planejada em dry-run"
+        : record.outbound.status === "failed"
+          ? "Falha no envio"
+          : "Resposta registrada"
+    return element("article", { className: "history-record outbound" }, [
+      element("div", { className: "history-record-head" }, [
+        element("strong", { text: status }),
+        element("span", { text: formatTime(record.at) }),
+      ]),
+      element("p", { text: record.outbound.text || "[sem texto]" }),
+      record.outbound.error
+        ? element("small", { className: "history-error", text: record.outbound.error })
+        : null,
+    ])
+  }
+  if (record.type === "classification") {
+    return element("article", { className: "history-record system" }, [
+      element("div", { className: "history-record-head" }, [
+        element("strong", {
+          text: classificationLabels[record.classification.category] ?? "Classificação",
+        }),
+        element("span", { text: formatTime(record.at) }),
+      ]),
+      record.classification.note
+        ? element("p", { text: record.classification.note })
+        : element("p", { text: "Classificação atualizada sem nota." }),
+    ])
+  }
+  if (record.type === "review_resolution") {
+    return element("article", { className: "history-record system" }, [
+      element("div", { className: "history-record-head" }, [
+        element("strong", {
+          text: record.resolution.outcome === "approved" ? "Revisão respondida" : "Revisão encerrada",
+        }),
+        element("span", { text: formatTime(record.at) }),
+      ]),
+    ])
+  }
+  return null
+}
+
+async function openContactHistory(event) {
+  $("#history-title").textContent = contactName(event)
+  $("#history-subtitle").textContent = `${event.accountLabel} · ${channelLabel(event)}`
+  const timeline = $("#history-timeline")
+  timeline.replaceChildren(element("p", { className: "muted-copy", text: "Carregando contexto…" }))
+  $("#history-drawer").hidden = false
+  $("#history-scrim").hidden = false
+  document.body.classList.add("drawer-open")
+  try {
+    const records = await api(`/v1/inbox/${encodeURIComponent(event.id)}/history`)
+    timeline.replaceChildren()
+    if (!records.length) {
+      timeline.append(emptyState("Ainda não há histórico para este contato."))
+      return
+    }
+    for (const record of records) {
+      const rendered = historyRecord(record)
+      if (rendered) timeline.append(rendered)
+    }
+  } catch {
+    timeline.replaceChildren(
+      emptyState("Não foi possível carregar o histórico deste contato."),
+    )
+  }
 }
 
 function classificationSelect(item) {
@@ -264,6 +381,7 @@ function backlogCard(item) {
         className: `status-tag ${item.analysis.intent === "sales" ? "sales" : ""}`,
         text: `Leitura: ${item.analysis.label}`,
       }),
+      historyButton(event),
       element("span", {
         className: `status-tag ${item.classification.source === "manual" ? "auto" : ""}`,
         text: item.classification.source === "manual" ? "Catalogação manual" : "Sugestão automática",
@@ -356,10 +474,19 @@ function reviewCard(item) {
           element("span", { text: `${event.accountLabel} · ${channelLabel(event)}` }),
         ]),
       ]),
-      element("span", {
-        className: "status-tag review",
-        text: item.decision.reason === "sensitive_content" ? "Tema sensível" : "Sem automação",
-      }),
+      element("div", { className: "message-tags" }, [
+        element("span", {
+          className: "status-tag review",
+          text:
+            {
+              sensitive_content: "Tema sensível",
+              human_requested: "Pediu atendimento",
+              recent_automation: "Resposta repetida evitada",
+              no_matching_automation: "Sem automação",
+            }[item.decision.reason] ?? "Revisar",
+        }),
+        historyButton(event),
+      ]),
     ]),
     element("p", { className: "message-text", text: event.text || "[sem texto]" }),
     textarea,
@@ -696,8 +823,9 @@ function switchView(view) {
 async function refresh() {
   $("#sync-status").textContent = "Atualizando…"
   try {
-    const [summary, inbox, backlog, reviews, automations, integrations, setup] = await Promise.all([
+    const [summary, analytics, inbox, backlog, reviews, automations, integrations, setup] = await Promise.all([
       api("/v1/summary"),
+      api("/v1/analytics"),
       api("/v1/inbox?limit=150"),
       api("/v1/backlog?scope=all"),
       api("/v1/reviews"),
@@ -706,6 +834,7 @@ async function refresh() {
       api("/v1/setup"),
     ])
     state.summary = summary
+    state.analytics = analytics
     state.inbox = inbox
     state.backlog = backlog
     state.reviews = reviews
@@ -713,6 +842,7 @@ async function refresh() {
     state.integrations = integrations
     state.setup = setup
     renderSummary()
+    renderAnalytics()
     renderInbox()
     renderBacklog()
     renderReviews()
@@ -867,6 +997,12 @@ $("#test-account").addEventListener("change", (event) => {
     webchat: "webchat",
   }
   $("#test-channel").value = channelByAccount[event.target.value]
+})
+
+$("#history-close").addEventListener("click", closeContactHistory)
+$("#history-scrim").addEventListener("click", closeContactHistory)
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !$("#history-drawer").hidden) closeContactHistory()
 })
 
 $$(".nav-item").forEach((button) => {

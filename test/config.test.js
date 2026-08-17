@@ -32,6 +32,7 @@ test("loads separate Instagram account credentials", () => {
     ],
   )
   assert.equal(config.metaApiVersion, "v26.0")
+  assert.equal(config.automationCooldownMinutes, 1440)
 })
 
 test("rejects template secrets in production", () => {
@@ -81,4 +82,12 @@ test("requires Meta webhook secrets before live delivery", () => {
       }),
     /META_VERIFY_TOKEN/,
   )
+})
+
+test("validates the automation repetition cooldown", () => {
+  assert.throws(
+    () => loadConfig({ AUTOMATION_COOLDOWN_MINUTES: "10081" }),
+    /AUTOMATION_COOLDOWN_MINUTES/,
+  )
+  assert.equal(loadConfig({ AUTOMATION_COOLDOWN_MINUTES: "0" }).automationCooldownMinutes, 0)
 })
