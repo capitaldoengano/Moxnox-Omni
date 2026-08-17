@@ -1,14 +1,31 @@
 const state = {
   apiKey: sessionStorage.getItem("moxnox-admin-key") ?? "",
   inbox: [],
+  backlog: [],
   reviews: [],
+  automations: [],
   summary: {},
   integrations: null,
   filter: "all",
+  backlogFilter: "open",
   search: "",
   currentView: "inbox",
   refreshTimer: null,
 }
+
+const classificationLabels = {
+  unclassified: "Não classificada",
+  potential_lead: "Potencial lead",
+  qualified_lead: "Lead qualificado",
+  follow_up: "Follow-up",
+  customer: "Cliente",
+  support: "Suporte",
+  resolved: "Resolvida",
+  discarded: "Descartada",
+  sensitive: "Tema sensível",
+}
+
+const closedClassifications = new Set(["resolved", "discarded"])
 
 const $ = (selector) => document.querySelector(selector)
 const $$ = (selector) => [...document.querySelectorAll(selector)]
@@ -50,7 +67,10 @@ function showLogin(message = "") {
   $("#login-view").hidden = false
   $("#app-view").hidden = true
   $("#login-error").textContent = message
-  if (state.refreshTimer) window.clearInterval(state.refreshTimer)
+  if (state.refreshTimer) {
+    window.clearInterval(state.refreshTimer)
+    state.refreshTimer = null
+  }
 }
 
 function showApp() {
@@ -110,11 +130,12 @@ function emptyState(message) {
 }
 
 function renderSummary() {
-  $("#metric-inbound").textContent = state.summary.inbound ?? 0
-  $("#metric-sales").textContent = state.summary.salesOpportunities ?? 0
-  $("#metric-automated").textContent = state.summary.automated ?? 0
+  $("#metric-backlog").textContent = state.summary.backlog ?? 0
+  $("#metric-unclassified").textContent = state.summary.unclassified ?? 0
+  $("#metric-leads").textContent = state.summary.potentialLeads ?? 0
   $("#metric-reviews").textContent = state.summary.pendingReviews ?? 0
   $("#nav-inbox-count").textContent = state.summary.inbound ?? 0
+  $("#nav-backlog-count").textContent = state.summary.backlog ?? 0
   $("#nav-review-count").textContent = state.summary.pendingReviews ?? 0
 }
 
@@ -179,6 +200,92 @@ function renderInbox() {
     return
   }
   for (const item of filtered) list.append(messageCard(item))
+}
+
+function classificationSelect(item) {
+  const select = element("select", {
+    attributes: { "aria-label": "Classificação da mensagem" },
+  })
+  for (const [value, label] of Object.entries(classificationLabels)) {
+    const option = element("option", { text: label, attributes: { value } })
+    option.selected = item.classification.category === value
+    select.append(option)
+  }
+  return select
+}
+
+function backlogCard(item) {
+  const event = item.event
+  const name = contactName(event)
+  const select = classificationSelect(item)
+  const note = element("input", {
+    attributes: {
+      value: item.classification.note ?? "",
+      maxlength: "1000",
+      placeholder: "Nota interna opcional",
+      "aria-label": `Nota interna para ${name}`,
+    },
+  })
+  const save = element("button", {
+    className: "primary-button compact-button",
+    text: "Salvar",
+  })
+  save.addEventListener("click", async () => {
+    save.disabled = true
+    try {
+      await api(`/v1/inbox/${encodeURIComponent(event.id)}/classification`, {
+        method: "POST",
+        body: JSON.stringify({ category: select.value, note: note.value.trim() }),
+      })
+      showToast("Classificação registrada.")
+      await refresh()
+    } catch (error) {
+      showToast(error.message === "unauthorized" ? "Chave inválida." : "Não foi possível classificar.")
+    } finally {
+      save.disabled = false
+    }
+  })
+
+  return element("article", { className: "backlog-card" }, [
+    element("div", { className: "message-meta" }, [
+      element("div", { className: "identity" }, [
+        element("span", { className: "avatar", text: initials(name) }),
+        element("div", {}, [
+          element("strong", { text: name }),
+          element("span", { text: `${event.accountLabel} · ${channelLabel(event)}` }),
+        ]),
+      ]),
+      element("span", { className: "timestamp", text: formatTime(item.receivedAt) }),
+    ]),
+    element("p", { className: "message-text", text: event.text || "[sem texto]" }),
+    element("div", { className: "catalog-context" }, [
+      element("span", {
+        className: `status-tag ${item.analysis.intent === "sales" ? "sales" : ""}`,
+        text: `Leitura: ${item.analysis.label}`,
+      }),
+      element("span", {
+        className: `status-tag ${item.classification.source === "manual" ? "auto" : ""}`,
+        text: item.classification.source === "manual" ? "Catalogação manual" : "Sugestão automática",
+      }),
+    ]),
+    element("div", { className: "classification-controls" }, [select, note, save]),
+  ])
+}
+
+function renderBacklog() {
+  const list = $("#backlog-list")
+  list.replaceChildren()
+  const filtered = state.backlog.filter((item) => {
+    const category = item.classification.category
+    if (state.backlogFilter === "open") return !closedClassifications.has(category)
+    if (state.backlogFilter === "closed") return closedClassifications.has(category)
+    return category === state.backlogFilter
+  })
+  if (!filtered.length) {
+    list.append(emptyState("Nenhuma mensagem nessa etapa do catálogo."))
+    return
+  }
+  for (const item of filtered) list.append(backlogCard(item))
 }
 
 function targetOptions(event) {
@@ -269,6 +376,127 @@ function renderReviews() {
   for (const item of state.reviews) list.append(reviewCard(item))
 }
 
+function checkedValues(name) {
+  return $$(`input[name="${name}"]:checked`).map((input) => input.value)
+}
+
+function setCheckedValues(name, values) {
+  $$(`input[name="${name}"]`).forEach((input) => {
+    input.checked = values.includes(input.value)
+  })
+}
+
+function automationPayload() {
+  return {
+    id: $("#automation-id").value.trim(),
+    name: $("#automation-name").value.trim(),
+    enabled: $("#automation-enabled").checked,
+    accounts: checkedValues("automation-account"),
+    channels: checkedValues("automation-channel"),
+    kinds: checkedValues("automation-kind"),
+    match: {
+      mode: $("#automation-mode").value,
+      terms: $("#automation-terms")
+        .value.split("\n")
+        .map((term) => term.trim())
+        .filter(Boolean),
+    },
+    action: {
+      messageReply: $("#automation-message-reply").value.trim(),
+      privateReply: $("#automation-private-reply").value.trim(),
+      publicReply: $("#automation-public-reply").value.trim(),
+    },
+  }
+}
+
+function resetAutomationForm() {
+  $("#automation-form").reset()
+  delete $("#automation-id").dataset.edited
+  $("#automation-enabled").checked = true
+  setCheckedValues("automation-account", ["capital-do-engano"])
+  setCheckedValues("automation-channel", ["instagram"])
+  setCheckedValues("automation-kind", ["comment", "message"])
+  $("#automation-editor-title").textContent = "Nova regra"
+  $("#automation-form-status").textContent = ""
+  $("#automation-id").readOnly = false
+  $("#automation-name").focus()
+}
+
+function editAutomation(rule) {
+  $("#automation-name").value = rule.name ?? rule.id
+  $("#automation-id").value = rule.id
+  $("#automation-id").readOnly = true
+  $("#automation-enabled").checked = rule.enabled
+  setCheckedValues("automation-account", rule.accounts)
+  setCheckedValues("automation-channel", rule.channels)
+  setCheckedValues("automation-kind", rule.kinds)
+  $("#automation-mode").value = rule.match.mode
+  $("#automation-terms").value = rule.match.terms.join("\n")
+  $("#automation-message-reply").value = rule.action.messageReply ?? ""
+  $("#automation-private-reply").value = rule.action.privateReply ?? ""
+  $("#automation-public-reply").value = rule.action.publicReply ?? ""
+  $("#automation-editor-title").textContent = rule.name ?? rule.id
+  $("#automation-form-status").textContent = "Editando regra existente"
+  $("#automation-form").scrollIntoView({ behavior: "smooth", block: "start" })
+}
+
+function automationCard(rule) {
+  const edit = element("button", { className: "secondary-button compact-button", text: "Editar" })
+  const toggle = element("button", {
+    className: rule.enabled ? "danger-button compact-button" : "primary-button compact-button",
+    text: rule.enabled ? "Pausar" : "Ativar",
+  })
+  edit.addEventListener("click", () => editAutomation(rule))
+  toggle.addEventListener("click", async () => {
+    toggle.disabled = true
+    try {
+      await api(`/v1/automations/${encodeURIComponent(rule.id)}`, {
+        method: "PUT",
+        body: JSON.stringify({ ...rule, enabled: !rule.enabled }),
+      })
+      showToast(rule.enabled ? "Regra pausada." : "Regra ativada.")
+      await refresh()
+    } catch {
+      showToast("Não foi possível alterar a regra.")
+    } finally {
+      toggle.disabled = false
+    }
+  })
+  const preview = rule.action.messageReply || rule.action.privateReply || rule.action.publicReply
+  return element("article", { className: `automation-card ${rule.enabled ? "" : "is-paused"}` }, [
+    element("div", { className: "automation-card-head" }, [
+      element("div", {}, [
+        element("strong", { text: rule.name ?? rule.id }),
+        element("code", { text: rule.id }),
+      ]),
+      element("span", {
+        className: `connection-status ${rule.enabled ? "ok" : "pending"}`,
+        text: rule.enabled ? "Ativa" : "Pausada",
+      }),
+    ]),
+    element("p", {
+      className: "automation-scope",
+      text: `${rule.accounts.join(", ")} · ${rule.channels.join(", ")} · ${rule.kinds.join(", ")}`,
+    }),
+    element("p", {
+      className: "automation-terms",
+      text: `Dispara com: ${rule.match.terms.slice(0, 5).join(" · ")}${rule.match.terms.length > 5 ? "…" : ""}`,
+    }),
+    element("p", { className: "response-preview", text: preview || "Sem resposta configurada" }),
+    element("div", { className: "card-actions" }, [edit, toggle]),
+  ])
+}
+
+function renderAutomations() {
+  const list = $("#automation-list")
+  list.replaceChildren()
+  if (!state.automations.length) {
+    list.append(emptyState("Nenhuma regra criada."))
+    return
+  }
+  for (const rule of state.automations) list.append(automationCard(rule))
+}
+
 function connectionCard(connection) {
   return element("article", { className: "connection-card" }, [
     element("div", { className: "connection-head" }, [
@@ -311,11 +539,13 @@ function switchView(view) {
   state.currentView = view
   const labels = {
     inbox: ["VISÃO GERAL", "Caixa de entrada"],
+    backlog: ["CATÁLOGO", "Backlog e leads"],
     reviews: ["DECISÃO HUMANA", "Precisa de você"],
+    automations: ["CONFIGURAÇÃO", "Respostas automáticas"],
     connections: ["CONFIGURAÇÃO", "Conexões"],
   }
   for (const name of Object.keys(labels)) $(`#${name}-view`).hidden = name !== view
-  $("#summary-strip").hidden = view === "connections"
+  $("#summary-strip").hidden = ["automations", "connections"].includes(view)
   $("#view-kicker").textContent = labels[view][0]
   $("#view-title").textContent = labels[view][1]
   $$(".nav-item").forEach((button) => button.classList.toggle("is-active", button.dataset.view === view))
@@ -324,19 +554,25 @@ function switchView(view) {
 async function refresh() {
   $("#sync-status").textContent = "Atualizando…"
   try {
-    const [summary, inbox, reviews, integrations] = await Promise.all([
+    const [summary, inbox, backlog, reviews, automations, integrations] = await Promise.all([
       api("/v1/summary"),
       api("/v1/inbox?limit=150"),
+      api("/v1/backlog?scope=all"),
       api("/v1/reviews"),
+      api("/v1/automations"),
       api("/v1/integrations"),
     ])
     state.summary = summary
     state.inbox = inbox
+    state.backlog = backlog
     state.reviews = reviews
+    state.automations = automations
     state.integrations = integrations
     renderSummary()
     renderInbox()
+    renderBacklog()
     renderReviews()
+    renderAutomations()
     renderConnections()
     $("#sync-status").textContent = `Atualizado ${new Intl.DateTimeFormat("pt-BR", {
       hour: "2-digit",
@@ -387,8 +623,105 @@ $("#inbox-filters").addEventListener("click", (event) => {
   const button = event.target.closest("[data-filter]")
   if (!button) return
   state.filter = button.dataset.filter
-  $$(".filter-button").forEach((candidate) => candidate.classList.toggle("is-active", candidate === button))
+  $$("#inbox-filters .filter-button").forEach((candidate) =>
+    candidate.classList.toggle("is-active", candidate === button),
+  )
   renderInbox()
+})
+
+$("#backlog-filters").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-backlog-filter]")
+  if (!button) return
+  state.backlogFilter = button.dataset.backlogFilter
+  $$('[data-backlog-filter]').forEach((candidate) =>
+    candidate.classList.toggle("is-active", candidate === button),
+  )
+  renderBacklog()
+})
+
+$("#new-automation-button").addEventListener("click", resetAutomationForm)
+
+$("#automation-name").addEventListener("input", (event) => {
+  const idInput = $("#automation-id")
+  if (idInput.readOnly || idInput.dataset.edited === "true") return
+  idInput.value = event.target.value
+    .normalize("NFD")
+    .replaceAll(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-|-$/g, "")
+    .slice(0, 80)
+})
+
+$("#automation-id").addEventListener("input", (event) => {
+  event.target.dataset.edited = "true"
+})
+
+$("#automation-form").addEventListener("submit", async (event) => {
+  event.preventDefault()
+  const rule = automationPayload()
+  const submit = event.submitter
+  submit.disabled = true
+  $("#automation-form-status").textContent = "Salvando…"
+  try {
+    await api(`/v1/automations/${encodeURIComponent(rule.id)}`, {
+      method: "PUT",
+      body: JSON.stringify(rule),
+    })
+    $("#automation-form-status").textContent = "Regra salva e já disponível"
+    showToast("Automação salva.")
+    await refresh()
+  } catch (error) {
+    $("#automation-form-status").textContent = "Confira contas, canais, disparadores e respostas"
+    showToast(`Não foi possível salvar: ${error.message}`)
+  } finally {
+    submit.disabled = false
+  }
+})
+
+$("#automation-test-form").addEventListener("submit", async (event) => {
+  event.preventDefault()
+  const output = $("#automation-test-result")
+  const submit = event.submitter
+  submit.disabled = true
+  output.textContent = "Simulando…"
+  try {
+    const result = await api("/v1/automations/test", {
+      method: "POST",
+      body: JSON.stringify({
+        accountKey: $("#test-account").value,
+        channel: $("#test-channel").value,
+        kind: $("#test-kind").value,
+        text: $("#test-message").value.trim(),
+      }),
+    })
+    const decision = result.decision
+    if (decision.outcome !== "automated") {
+      output.textContent = `Vai para revisão humana: ${decision.reason}`
+    } else {
+      const action = decision.action ?? {}
+      const replies =
+        $("#test-kind").value === "message"
+          ? [action.messageReply].filter(Boolean)
+          : [action.privateReply, action.publicReply].filter(Boolean)
+      output.textContent = `Regra ${decision.ruleId}: ${replies.join(" | ")}`
+    }
+  } catch (error) {
+    output.textContent = `Teste não concluído: ${error.message}`
+  } finally {
+    submit.disabled = false
+  }
+})
+
+$("#test-account").addEventListener("change", (event) => {
+  const channelByAccount = {
+    "capital-do-engano": "instagram",
+    gu: "instagram",
+    whatsapp: "whatsapp",
+    messenger: "messenger",
+    webchat: "webchat",
+  }
+  $("#test-channel").value = channelByAccount[event.target.value]
 })
 
 $$(".nav-item").forEach((button) => {

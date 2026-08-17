@@ -33,7 +33,8 @@ export function createPipeline({ store, rules, dispatcher }) {
 
   return {
     async process(event) {
-      const decision = decideEvent(event, rules)
+      const activeRules = typeof rules === "function" ? rules() : rules
+      const decision = decideEvent(event, activeRules)
       await store.recordDecision(event.id, decision)
       if (decision.outcome !== "automated") return decision
       for (const outbound of buildOutbound(event, decision.action)) {

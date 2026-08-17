@@ -1,5 +1,6 @@
 import { mkdir, readFile, appendFile } from "node:fs/promises"
 import path from "node:path"
+import { validateClassification } from "../domain/classification.js"
 
 export class EventStore {
   #filePath
@@ -74,6 +75,18 @@ export class EventStore {
     })
   }
 
+  async classify(eventId, input) {
+    if (!this.getInbound(eventId)) {
+      const error = new Error("event_not_found")
+      error.statusCode = 404
+      throw error
+    }
+    const classification = validateClassification(input)
+    const at = new Date().toISOString()
+    await this.#append({ type: "classification", at, eventId, classification })
+    return { ...classification, classifiedAt: at }
+  }
+
   getInbound(eventId) {
     return this.#records.find(
       (record) => record.type === "inbound" && record.event.id === eventId,
@@ -101,10 +114,8 @@ export class EventStore {
   }
 
   listInbox(limit = 100) {
-    const inbound = this.#records
-      .filter((record) => record.type === "inbound")
-      .slice(-limit)
-      .reverse()
+    const records = this.#records.filter((record) => record.type === "inbound")
+    const inbound = (limit === null ? records : records.slice(-limit)).reverse()
 
     return inbound.map((record) => {
       const eventId = record.event.id
@@ -118,12 +129,22 @@ export class EventStore {
         (candidate) =>
           candidate.type === "review_resolution" && candidate.eventId === eventId,
       )
+      const classifications = this.#records.filter(
+        (candidate) =>
+          candidate.type === "classification" && candidate.eventId === eventId,
+      )
       return {
         event: record.event,
         receivedAt: record.at,
         decision: decisions.at(-1)?.decision ?? null,
         outbound: outbound.map((candidate) => candidate.outbound),
         resolution: resolutions.at(-1)?.resolution ?? null,
+        classification: classifications.at(-1)
+          ? {
+              ...classifications.at(-1).classification,
+              classifiedAt: classifications.at(-1).at,
+            }
+          : null,
       }
     })
   }
@@ -166,7 +187,8 @@ export class EventStore {
     return this.#records.filter(
       (record) =>
         (record.type === "inbound" && eventIds.has(record.event.id)) ||
-        (record.type === "outbound" && eventIds.has(record.eventId)),
+        (["outbound", "classification"].includes(record.type) &&
+          eventIds.has(record.eventId)),
     )
   }
 }

@@ -3,7 +3,12 @@ import { readFile } from "node:fs/promises"
 import { createServer } from "node:http"
 import { fileURLToPath } from "node:url"
 import { analyzeMessage } from "./domain/analyze-message.js"
+import {
+  CLASSIFICATION_CATEGORIES,
+  effectiveClassification,
+} from "./domain/classification.js"
 import { normalizeMetaPayload } from "./domain/normalize-meta.js"
+import { decideEvent } from "./domain/rules.js"
 import { readRawBody, sendAsset, sendJson, sendText } from "./lib/http.js"
 import { safeEqual, verifyMetaSignature } from "./lib/security.js"
 
@@ -59,11 +64,15 @@ const accountLabel = (config, event) => {
   return "Webchat"
 }
 
-const enrichItem = (config, item) => ({
-  ...item,
-  analysis: analyzeMessage(item.event, item.decision),
-  event: { ...item.event, accountLabel: accountLabel(config, item.event) },
-})
+const enrichItem = (config, item) => {
+  const analysis = analyzeMessage(item.event, item.decision)
+  return {
+    ...item,
+    analysis,
+    classification: effectiveClassification(item, analysis),
+    event: { ...item.event, accountLabel: accountLabel(config, item.event) },
+  }
+}
 
 const integrations = (config) => ({
   deliveryMode: config.deliveryMode,
@@ -100,7 +109,7 @@ const allowedTargets = (event) => {
   return []
 }
 
-export function createApp({ config, store, queue, pipeline }) {
+export function createApp({ config, store, queue, pipeline, automationStore = null }) {
   return createServer(async (request, response) => {
     try {
       const url = new URL(request.url, "http://localhost")
@@ -209,10 +218,81 @@ export function createApp({ config, store, queue, pipeline }) {
 
       if (request.method === "GET" && url.pathname === "/v1/summary") {
         const data = store.getSummary()
-        data.salesOpportunities = store
-          .listInbox(250)
-          .filter((item) => analyzeMessage(item.event, item.decision).intent === "sales")
-          .length
+        const classified = store.listInbox(null).map((item) => enrichItem(config, item))
+        const open = classified.filter(
+          (item) => !["resolved", "discarded"].includes(item.classification.category),
+        )
+        data.backlog = open.length
+        data.unclassified = open.filter(
+          (item) => item.classification.category === "unclassified",
+        ).length
+        data.potentialLeads = open.filter(
+          (item) => item.classification.category === "potential_lead",
+        ).length
+        data.followUps = open.filter(
+          (item) => item.classification.category === "follow_up",
+        ).length
+        data.salesOpportunities = data.potentialLeads
+        return sendJson(response, 200, { data })
+      }
+
+      if (request.method === "GET" && url.pathname === "/v1/backlog") {
+        const category = url.searchParams.get("category")
+        if (category && !CLASSIFICATION_CATEGORIES.includes(category)) {
+          return sendJson(response, 400, { error: "invalid_classification_category" })
+        }
+        let data = store.listInbox(null).map((item) => enrichItem(config, item))
+        if (category) {
+          data = data.filter((item) => item.classification.category === category)
+        } else if (url.searchParams.get("scope") !== "all") {
+          data = data.filter(
+            (item) => !["resolved", "discarded"].includes(item.classification.category),
+          )
+        }
+        return sendJson(response, 200, { data })
+      }
+
+      if (request.method === "GET" && url.pathname === "/v1/automations") {
+        if (!automationStore) return sendJson(response, 503, { error: "not_available" })
+        return sendJson(response, 200, { data: automationStore.list() })
+      }
+
+      if (request.method === "POST" && url.pathname === "/v1/automations/test") {
+        if (!automationStore) return sendJson(response, 503, { error: "not_available" })
+        const body = parseJson(await readRawBody(request))
+        const account = String(body?.accountKey ?? "")
+        const channel = String(body?.channel ?? "")
+        const kind = String(body?.kind ?? "")
+        const text = String(body?.text ?? "").trim()
+        const testChannels = {
+          "capital-do-engano": "instagram",
+          gu: "instagram",
+          whatsapp: "whatsapp",
+          messenger: "messenger",
+          webchat: "webchat",
+        }
+        if (!testChannels[account] || testChannels[account] !== channel) {
+          return sendJson(response, 400, { error: "invalid_test_context" })
+        }
+        if (!text || !["comment", "message"].includes(kind)) {
+          return sendJson(response, 400, { error: "invalid_test_message" })
+        }
+        const event = { accountKey: account, channel, kind, text }
+        const decision = decideEvent(event, automationStore.list())
+        return sendJson(response, 200, {
+          data: { decision, analysis: analyzeMessage(event, decision) },
+        })
+      }
+
+      const automationMatch = url.pathname.match(/^\/v1\/automations\/([^/]+)$/)
+      if (request.method === "PUT" && automationMatch) {
+        if (!automationStore) return sendJson(response, 503, { error: "not_available" })
+        const id = decodeURIComponent(automationMatch[1])
+        const body = parseJson(await readRawBody(request))
+        if (body?.id && body.id !== id) {
+          return sendJson(response, 400, { error: "automation_id_mismatch" })
+        }
+        const data = await automationStore.upsert({ ...body, id })
         return sendJson(response, 200, { data })
       }
 
@@ -247,6 +327,19 @@ export function createApp({ config, store, queue, pipeline }) {
           String(body?.reason ?? "rejected_by_operator"),
         )
         return sendJson(response, 200, { ok: true })
+      }
+
+      const classificationMatch = url.pathname.match(
+        /^\/v1\/inbox\/([^/]+)\/classification$/,
+      )
+      if (request.method === "POST" && classificationMatch) {
+        const eventId = decodeURIComponent(classificationMatch[1])
+        const body = parseJson(await readRawBody(request))
+        await store.classify(eventId, body)
+        const item = store
+          .listInbox(null)
+          .find((candidate) => candidate.event.id === eventId)
+        return sendJson(response, 200, { data: enrichItem(config, item) })
       }
 
       const conversationMatch = url.pathname.match(/^\/v1\/conversations\/([^/]+)$/)

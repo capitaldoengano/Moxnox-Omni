@@ -2,6 +2,7 @@
   "automations": [
     {
       "id": "capital-desejo-que-pensa-sales",
+      "name": "Capital · interesse no Desejo que Pensa",
       "enabled": true,
       "accounts": ["capital-do-engano"],
       "channels": ["instagram"],
@@ -34,6 +35,7 @@
     },
     {
       "id": "gu-desejo-que-pensa-sales",
+      "name": "Gu · interesse no Desejo que Pensa",
       "enabled": true,
       "accounts": ["gu"],
       "channels": ["instagram"],
@@ -66,6 +68,7 @@
     },
     {
       "id": "whatsapp-desejo-que-pensa-sales",
+      "name": "WhatsApp · interesse no Desejo que Pensa",
       "enabled": true,
       "accounts": ["whatsapp"],
       "channels": ["whatsapp"],

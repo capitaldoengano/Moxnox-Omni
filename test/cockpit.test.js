@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { createApp } from "../src/app.js"
 import { createPipeline } from "../src/domain/pipeline.js"
+import { AutomationStore } from "../src/infra/automation-store.js"
 import { EventStore } from "../src/infra/event-store.js"
 import { JobQueue } from "../src/infra/job-queue.js"
 
@@ -12,12 +13,21 @@ test("serves the cockpit and exposes authenticated operational data", async (t) 
   const dataDir = await mkdtemp(path.join(tmpdir(), "moxnox-cockpit-"))
   const store = new EventStore(dataDir)
   await store.initialize()
+  const automationStore = new AutomationStore(
+    dataDir,
+    path.resolve("config/automations.example.json"),
+  )
+  await automationStore.initialize()
   const dispatcher = {
     async send() {
       return { status: "planned", providerMessageId: null }
     },
   }
-  const pipeline = createPipeline({ store, rules: [], dispatcher })
+  const pipeline = createPipeline({
+    store,
+    rules: () => automationStore.list(),
+    dispatcher,
+  })
   const queue = new JobQueue((event) => pipeline.process(event))
   const config = {
     deliveryMode: "dry-run",
@@ -45,7 +55,7 @@ test("serves the cockpit and exposes authenticated operational data", async (t) 
     whatsappPhoneNumberId: "whatsapp-phone-9012",
     whatsappAccessToken: "whatsapp-token-must-not-leak",
   }
-  const app = createApp({ config, store, queue, pipeline })
+  const app = createApp({ config, store, queue, pipeline, automationStore })
   await new Promise((resolve) => app.listen(0, "127.0.0.1", resolve))
   const baseUrl = `http://127.0.0.1:${app.address().port}`
   t.after(async () => {
@@ -99,6 +109,61 @@ test("serves the cockpit and exposes authenticated operational data", async (t) 
   )
   assert.equal(inbox.data[0].event.accountLabel, "Webchat")
   assert.equal(inbox.data[0].decision.outcome, "human_review")
+
+  const backlog = await fetch(`${baseUrl}/v1/backlog`, { headers }).then((response) =>
+    response.json(),
+  )
+  assert.equal(backlog.data[0].classification.category, "unclassified")
+  assert.equal(backlog.data[0].classification.source, "automatic")
+
+  const classification = await fetch(
+    `${baseUrl}/v1/inbox/${encodeURIComponent(inboundPayload.eventId)}/classification`,
+    {
+      method: "POST",
+      headers: { ...headers, "content-type": "application/json" },
+      body: JSON.stringify({ category: "potential_lead", note: "Pediu mais detalhes" }),
+    },
+  ).then((response) => response.json())
+  assert.equal(classification.data.classification.category, "potential_lead")
+  assert.equal(classification.data.classification.source, "manual")
+
+  const automations = await fetch(`${baseUrl}/v1/automations`, { headers }).then(
+    (response) => response.json(),
+  )
+  assert.equal(automations.data.length, 3)
+  const savedAutomation = await fetch(`${baseUrl}/v1/automations/webchat-interest`, {
+    method: "PUT",
+    headers: { ...headers, "content-type": "application/json" },
+    body: JSON.stringify({
+      id: "webchat-interest",
+      name: "Interesse pelo webchat",
+      enabled: true,
+      accounts: ["webchat"],
+      channels: ["webchat"],
+      kinds: ["message"],
+      match: { mode: "containsAny", terms: ["quero conhecer"] },
+      action: { messageReply: "Conte mais sobre o que você procura." },
+    }),
+  }).then((response) => response.json())
+  assert.equal(savedAutomation.data.id, "webchat-interest")
+  const simulation = await fetch(`${baseUrl}/v1/automations/test`, {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json" },
+    body: JSON.stringify({
+      accountKey: "capital-do-engano",
+      channel: "instagram",
+      kind: "message",
+      text: "Qual o valor?",
+    }),
+  }).then((response) => response.json())
+  assert.equal(simulation.data.decision.ruleId, "capital-desejo-que-pensa-sales")
+
+  const updatedSummary = await fetch(`${baseUrl}/v1/summary`, { headers }).then(
+    (response) => response.json(),
+  )
+  assert.equal(updatedSummary.data.backlog, 1)
+  assert.equal(updatedSummary.data.unclassified, 0)
+  assert.equal(updatedSummary.data.potentialLeads, 1)
 
   const approval = await fetch(
     `${baseUrl}/v1/reviews/${encodeURIComponent(inboundPayload.eventId)}/approve`,

@@ -29,6 +29,12 @@ Inbound events receive an internal `accountKey` after provider authentication.
 Rules may target that stable key instead of depending on provider IDs, keeping
 Capital do Engano, `@ogustavosouzapauli` and WhatsApp copy separate.
 
+Runtime rule changes are stored atomically in `DATA_DIR/automations.json`; the
+packaged automation file is used only as the first-start seed. Message
+classifications are appended to the JSONL audit trail. The latest manual value
+is shown as the effective catalog state, while automatic sales, support and
+sensitive suggestions remain reproducible from the original event.
+
 ## Scale path
 
 The append-only JSONL store and in-process queue are intentional v0.1 adapters.

@@ -9,7 +9,7 @@ deduplicates events, evaluates deterministic rules and records proposed
 responses without contacting a provider. Live delivery must be enabled
 explicitly after credentials and Meta permissions are validated.
 
-## What works in v0.3
+## What works in v0.4
 
 - Meta webhook verification and HMAC-SHA256 signature validation.
 - Instagram comments and DMs, Facebook Page comments and DMs, and WhatsApp text.
@@ -24,6 +24,10 @@ explicitly after credentials and Meta permissions are validated.
 - Separate Instagram credentials for Capital do Engano and `@ogustavosouzapauli`.
 - Account-specific automations for Capital do Engano, the Gu profile and WhatsApp.
 - Initial Desejo que Pensa sales replies with human review for unrelated content.
+- Cockpit editor for account-aware rules, activation and safe response simulation.
+- Persistent automation overrides in the writable data volume.
+- Backlog catalog with automatic suggestions and auditable manual classification.
+- Dedicated views and counters for unclassified messages and potential leads.
 - Dependency-free Node.js runtime, tests, Docker image and CI.
 
 ## Quick start
@@ -61,11 +65,20 @@ Meta app.
 | `POST` | `/v1/webchat/messages` | Webchat ingestion (`x-site-token`) |
 | `GET` | `/v1/reviews` | Pending human reviews (`x-admin-api-key`) |
 | `GET` | `/v1/inbox` | Recent inbound activity and decisions |
+| `GET` | `/v1/backlog` | Open catalog; supports `category` or `scope=all` |
 | `GET` | `/v1/summary` | Operational counters |
+| `GET` | `/v1/automations` | Current persistent automation rules |
+| `PUT` | `/v1/automations/:id` | Create or replace a validated rule |
+| `POST` | `/v1/automations/test` | Simulate matching without sending anything |
 | `GET` | `/v1/integrations` | Credential status without revealing secrets |
+| `POST` | `/v1/inbox/:id/classification` | Append a backlog classification and note |
 | `POST` | `/v1/reviews/:id/approve` | Approve and deliver a reply |
 | `POST` | `/v1/reviews/:id/reject` | Close without replying |
 | `GET` | `/v1/conversations/:id` | Audited conversation records |
+
+All `/v1` operational routes require `x-admin-api-key`, except webchat
+ingestion, which uses its own site token. The cockpit never returns provider
+access tokens or application secrets.
 
 ## Commercial use
 

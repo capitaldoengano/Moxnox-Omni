@@ -403,13 +403,19 @@ select:focus {
 }
 
 .message-list,
-.review-list {
+.review-list,
+.backlog-list,
+.automation-list {
   display: grid;
   gap: 0.7rem;
 }
 
 .message-card,
-.review-card {
+.review-card,
+.backlog-card,
+.automation-card,
+.automation-editor,
+.automation-test {
   padding: 1rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -519,6 +525,47 @@ select:focus {
   gap: 0.35rem;
 }
 
+.backlog-filters {
+  margin-bottom: 1rem;
+}
+
+.catalog-context,
+.card-actions,
+.editor-actions,
+.panel-heading,
+.automation-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.catalog-context,
+.card-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.classification-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(220px, 1fr) auto;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.classification-controls select,
+.classification-controls input {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+}
+
+.compact-button {
+  padding: 0.58rem 0.72rem;
+  font-size: 0.72rem;
+}
+
 .section-intro {
   display: grid;
   grid-template-columns: 1fr minmax(240px, 460px);
@@ -537,6 +584,171 @@ select:focus {
   margin: 0;
   color: var(--paper-muted);
   line-height: 1.55;
+}
+
+.compact-intro {
+  margin-bottom: 1rem;
+}
+
+.automation-layout {
+  display: grid;
+  grid-template-columns: minmax(290px, 0.75fr) minmax(480px, 1.25fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.panel-heading {
+  margin-bottom: 0.85rem;
+}
+
+.panel-heading h4,
+.automation-test h4 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.automation-card {
+  border-color: rgb(117 156 255 / 24%);
+}
+
+.automation-card.is-paused {
+  opacity: 0.66;
+}
+
+.automation-card-head > div {
+  min-width: 0;
+}
+
+.automation-card-head strong,
+.automation-card-head code {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.automation-card-head code {
+  margin-top: 0.28rem;
+  color: var(--paper-muted);
+  font-size: 0.68rem;
+}
+
+.automation-scope,
+.automation-terms,
+.muted-copy,
+.automation-test p {
+  color: var(--paper-muted);
+  font-size: 0.73rem;
+  line-height: 1.45;
+}
+
+.automation-editor {
+  display: grid;
+  gap: 0.85rem;
+  border-color: rgb(185 255 44 / 28%);
+}
+
+.automation-editor label > span,
+.automation-test label > span {
+  display: block;
+  margin-bottom: 0.42rem;
+  color: var(--paper-muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.automation-editor label > span small {
+  font-weight: 500;
+}
+
+.automation-editor input[type="text"],
+.automation-editor input:not([type]),
+.automation-editor textarea,
+.automation-editor select,
+.automation-test textarea,
+.automation-test select {
+  width: 100%;
+  padding: 0.68rem 0.75rem;
+}
+
+.automation-editor textarea,
+.automation-test textarea {
+  min-height: 90px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.field-grid,
+.test-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.automation-editor fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.automation-editor legend {
+  padding: 0 0.3rem;
+  color: var(--paper-muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+.check-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.check-grid.stacked {
+  grid-template-columns: 1fr 1fr;
+}
+
+.check-grid label,
+.switch-field {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  color: var(--paper-muted);
+  font-size: 0.7rem;
+}
+
+.check-grid input,
+.switch-field input {
+  accent-color: var(--acid);
+}
+
+.editor-actions {
+  min-height: 40px;
+}
+
+.automation-test {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.65fr) minmax(300px, 1fr);
+  gap: 0.8rem 1rem;
+  margin-top: 1rem;
+  border-color: rgb(117 156 255 / 38%);
+}
+
+.automation-test > textarea,
+.automation-test > .editor-actions {
+  grid-column: 1 / -1;
+}
+
+.test-context {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.test-result {
+  max-width: 75%;
+  color: var(--paper-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
 }
 
 .review-card {
@@ -685,6 +897,10 @@ code {
     flex-direction: column;
   }
 
+  .automation-layout {
+    grid-template-columns: 1fr;
+  }
+
   .search-field {
     max-width: none;
   }
@@ -732,5 +948,31 @@ code {
 
   .review-actions {
     grid-template-columns: 1fr;
+  }
+
+  .classification-controls,
+  .field-grid,
+  .test-context,
+  .automation-test {
+    grid-template-columns: 1fr;
+  }
+
+  .check-grid,
+  .check-grid.stacked {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .automation-test > textarea,
+  .automation-test > .editor-actions {
+    grid-column: auto;
+  }
+
+  .editor-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .test-result {
+    max-width: none;
   }
 }

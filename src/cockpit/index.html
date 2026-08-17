@@ -41,7 +41,7 @@
         <div>
           <p class="eyebrow">MOXNOX OMNI</p>
           <h1 class="brand">cockpit<span>.</span></h1>
-          <p class="internal-badge">interno · v0.2</p>
+          <p class="internal-badge">interno · v0.4</p>
         </div>
 
         <nav class="main-nav" aria-label="Seções">
@@ -49,9 +49,16 @@
             <span>Caixa de entrada</span>
             <span id="nav-inbox-count" class="nav-count">0</span>
           </button>
+          <button class="nav-item" data-view="backlog">
+            <span>Backlog</span>
+            <span id="nav-backlog-count" class="nav-count">0</span>
+          </button>
           <button class="nav-item" data-view="reviews">
             <span>Precisa de você</span>
             <span id="nav-review-count" class="nav-count accent">0</span>
+          </button>
+          <button class="nav-item" data-view="automations">
+            <span>Automações</span>
           </button>
           <button class="nav-item" data-view="connections">
             <span>Conexões</span>
@@ -78,21 +85,44 @@
 
         <section id="summary-strip" class="summary-grid" aria-label="Resumo">
           <article class="metric-card">
-            <span>Recebidas</span>
-            <strong id="metric-inbound">0</strong>
+            <span>No backlog</span>
+            <strong id="metric-backlog">0</strong>
           </article>
           <article class="metric-card">
-            <span>Possíveis vendas</span>
-            <strong id="metric-sales">0</strong>
+            <span>Não classificadas</span>
+            <strong id="metric-unclassified">0</strong>
           </article>
           <article class="metric-card acid">
-            <span>Automatizadas</span>
-            <strong id="metric-automated">0</strong>
+            <span>Potenciais leads</span>
+            <strong id="metric-leads">0</strong>
           </article>
           <article class="metric-card warning">
             <span>Para revisar</span>
             <strong id="metric-reviews">0</strong>
           </article>
+        </section>
+
+        <section id="backlog-view" class="view-panel" hidden>
+          <div class="section-intro compact-intro">
+            <div>
+              <p class="eyebrow">CATÁLOGO OPERACIONAL</p>
+              <h3>Da mensagem ao próximo passo</h3>
+            </div>
+            <p>
+              A sugestão automática ajuda a separar o joio do lead. A classificação
+              manual sempre prevalece e fica registrada no histórico.
+            </p>
+          </div>
+          <div id="backlog-filters" class="filter-group backlog-filters" aria-label="Filtros do backlog">
+            <button class="filter-button is-active" data-backlog-filter="open">Em aberto</button>
+            <button class="filter-button" data-backlog-filter="unclassified">Não classificadas</button>
+            <button class="filter-button" data-backlog-filter="potential_lead">Potenciais leads</button>
+            <button class="filter-button" data-backlog-filter="qualified_lead">Qualificados</button>
+            <button class="filter-button" data-backlog-filter="follow_up">Follow-up</button>
+            <button class="filter-button" data-backlog-filter="customer">Clientes</button>
+            <button class="filter-button" data-backlog-filter="closed">Encerradas</button>
+          </div>
+          <div id="backlog-list" class="backlog-list"></div>
         </section>
 
         <section id="inbox-view" class="view-panel">
@@ -125,6 +155,143 @@
             </p>
           </div>
           <div id="review-list" class="review-list"></div>
+        </section>
+
+        <section id="automations-view" class="view-panel" hidden>
+          <div class="section-intro compact-intro">
+            <div>
+              <p class="eyebrow">RESPOSTAS AUTOMÁTICAS</p>
+              <h3>Regras que vocês controlam</h3>
+            </div>
+            <p>
+              As alterações valem imediatamente. Em <strong>dry-run</strong>, o sistema
+              só registra o que responderia — prudência sem virar burocracia.
+            </p>
+          </div>
+
+          <div class="automation-layout">
+            <div>
+              <div class="panel-heading">
+                <h4>Regras</h4>
+                <button id="new-automation-button" class="secondary-button" type="button">Nova regra</button>
+              </div>
+              <div id="automation-list" class="automation-list"></div>
+            </div>
+
+            <form id="automation-form" class="automation-editor">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">EDITOR</p>
+                  <h4 id="automation-editor-title">Nova regra</h4>
+                </div>
+                <label class="switch-field">
+                  <input id="automation-enabled" type="checkbox" checked />
+                  <span>Ativa</span>
+                </label>
+              </div>
+
+              <div class="field-grid">
+                <label>
+                  <span>Nome interno</span>
+                  <input id="automation-name" required maxlength="100" placeholder="Interesse no Desejo que Pensa" />
+                </label>
+                <label>
+                  <span>ID estável</span>
+                  <input id="automation-id" required maxlength="80" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="capital-interesse-dqp" />
+                </label>
+              </div>
+
+              <fieldset>
+                <legend>Contas</legend>
+                <div class="check-grid">
+                  <label><input type="checkbox" name="automation-account" value="capital-do-engano" checked /> Capital do Engano</label>
+                  <label><input type="checkbox" name="automation-account" value="gu" /> @ogustavosouzapauli</label>
+                  <label><input type="checkbox" name="automation-account" value="whatsapp" /> WhatsApp</label>
+                  <label><input type="checkbox" name="automation-account" value="messenger" /> Messenger</label>
+                  <label><input type="checkbox" name="automation-account" value="webchat" /> Webchat</label>
+                </div>
+              </fieldset>
+
+              <div class="field-grid">
+                <fieldset>
+                  <legend>Canais</legend>
+                  <div class="check-grid stacked">
+                    <label><input type="checkbox" name="automation-channel" value="instagram" checked /> Instagram</label>
+                    <label><input type="checkbox" name="automation-channel" value="whatsapp" /> WhatsApp</label>
+                    <label><input type="checkbox" name="automation-channel" value="messenger" /> Messenger</label>
+                    <label><input type="checkbox" name="automation-channel" value="webchat" /> Webchat</label>
+                  </div>
+                </fieldset>
+                <fieldset>
+                  <legend>Tipo</legend>
+                  <div class="check-grid stacked">
+                    <label><input type="checkbox" name="automation-kind" value="comment" checked /> Comentário</label>
+                    <label><input type="checkbox" name="automation-kind" value="message" checked /> Mensagem privada</label>
+                  </div>
+                </fieldset>
+              </div>
+
+              <label>
+                <span>Disparadores <small>uma frase por linha</small></span>
+                <textarea id="automation-terms" required placeholder="quanto custa&#10;tem vaga&#10;quero participar"></textarea>
+              </label>
+              <label>
+                <span>Combinação</span>
+                <select id="automation-mode">
+                  <option value="containsAny">Qualquer frase</option>
+                  <option value="containsAll">Todas as frases</option>
+                </select>
+              </label>
+              <label>
+                <span>Resposta para direct ou WhatsApp</span>
+                <textarea id="automation-message-reply" placeholder="Resposta enviada para mensagem privada"></textarea>
+              </label>
+              <label>
+                <span>Resposta privada a comentário</span>
+                <textarea id="automation-private-reply" placeholder="Mensagem enviada no privado"></textarea>
+              </label>
+              <label>
+                <span>Resposta pública ao comentário</span>
+                <textarea id="automation-public-reply" placeholder="Te chamei no privado."></textarea>
+              </label>
+              <div class="editor-actions">
+                <span id="automation-form-status" class="muted-copy"></span>
+                <button class="primary-button" type="submit">Salvar regra</button>
+              </div>
+            </form>
+          </div>
+
+          <form id="automation-test-form" class="automation-test">
+            <div>
+              <p class="eyebrow">SIMULADOR SEGURO</p>
+              <h4>Teste antes de colocar na rua</h4>
+              <p>O teste nunca envia mensagem, mesmo quando o servidor está em modo live.</p>
+            </div>
+            <div class="test-context">
+              <select id="test-account" aria-label="Conta do teste">
+                <option value="capital-do-engano">Capital do Engano</option>
+                <option value="gu">@ogustavosouzapauli</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="messenger">Messenger</option>
+                <option value="webchat">Webchat</option>
+              </select>
+              <select id="test-channel" aria-label="Canal do teste">
+                <option value="instagram">Instagram</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="messenger">Messenger</option>
+                <option value="webchat">Webchat</option>
+              </select>
+              <select id="test-kind" aria-label="Tipo do teste">
+                <option value="message">Mensagem privada</option>
+                <option value="comment">Comentário</option>
+              </select>
+            </div>
+            <textarea id="test-message" required placeholder="Ex.: Quanto custa e como funciona?"></textarea>
+            <div class="editor-actions">
+              <output id="automation-test-result" class="test-result">Aguardando um teste.</output>
+              <button class="secondary-button" type="submit">Simular resposta</button>
+            </div>
+          </form>
         </section>
 
         <section id="connections-view" class="view-panel" hidden>
