@@ -1,0 +1,19 @@
+{
+  "automations": [
+    {
+      "id": "information-request",
+      "enabled": true,
+      "channels": ["instagram", "messenger", "webchat", "whatsapp"],
+      "kinds": ["comment", "message"],
+      "match": {
+        "mode": "containsAny",
+        "terms": ["informação", "informacoes", "quero saber", "como funciona"]
+      },
+      "action": {
+        "publicReply": "Te mandei as informações no privado.",
+        "privateReply": "Oi! Recebi seu comentário. Me conta qual informação você procura para eu te encaminhar certinho.",
+        "messageReply": "Oi! Me conta qual informação você procura para eu te encaminhar certinho."
+      }
+    }
+  ]
+}

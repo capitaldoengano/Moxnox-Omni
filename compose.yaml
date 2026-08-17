@@ -1,0 +1,21 @@
+services:
+  omni:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3333:3333"
+    volumes:
+      - omni-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  omni-data:
+

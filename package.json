@@ -1,0 +1,17 @@
+{
+  "name": "moxnox-omni",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Independent omnichannel automation core for comments and messages.",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "test": "node --test",
+    "check": "node --check src/server.js && node --test && node scripts/check-secrets.js"
+  },
+  "license": "Apache-2.0"
+}
